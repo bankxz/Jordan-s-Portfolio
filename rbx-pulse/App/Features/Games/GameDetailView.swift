@@ -139,7 +139,7 @@ struct CCUChart: View {
             Chart {
                 ForEach(points, id: \.date) { point in
                     AreaMark(x: .value("Time", point.date), y: .value("Players", point.value))
-                        .foregroundStyle(.linearGradient(colors: [.accentColor.opacity(0.25), .clear],
+                        .foregroundStyle(.linearGradient(colors: [Color.accentColor.opacity(0.25), Color.clear],
                                                          startPoint: .top, endPoint: .bottom))
                         .interpolationMethod(.monotone)
                     LineMark(x: .value("Time", point.date), y: .value("Players", point.value))
@@ -148,7 +148,7 @@ struct CCUChart: View {
                 }
                 if let selectedPoint {
                     RuleMark(x: .value("Selected time", selectedPoint.date))
-                        .foregroundStyle(.secondary.opacity(0.5))
+                        .foregroundStyle(Color.secondary.opacity(0.5))
                     PointMark(x: .value("Selected time", selectedPoint.date),
                               y: .value("Players", selectedPoint.value))
                         .symbolSize(60)

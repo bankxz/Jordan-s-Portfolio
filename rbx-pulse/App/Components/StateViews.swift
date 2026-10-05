@@ -36,7 +36,7 @@ struct EmptyStateView: View {
 
 struct ErrorCard: View {
     let message: String
-    let retry: () async -> Void
+    let retry: @MainActor () async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -144,7 +144,7 @@ struct GameCard: View {
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(.tint.opacity(0.15), in: .capsule)
+                        .background(Color.accentColor.opacity(0.15), in: .capsule)
                         .foregroundStyle(.tint)
                 }
             }
@@ -168,7 +168,7 @@ struct GameIcon: View {
     var body: some View {
         let letter = name.first.map { String($0).uppercased() } ?? "?"
         RoundedRectangle(cornerRadius: 12)
-            .fill(.tint.opacity(0.18))
+            .fill(Color.accentColor.opacity(0.18))
             .frame(width: 48, height: 48)
             .overlay {
                 Text(letter)
@@ -219,7 +219,7 @@ struct GoalStatusBadge: View {
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(status.tint.opacity(0.15), in: .capsule)
+            .background(statusColor.accentColor.opacity(0.15), in: .capsule)
             .foregroundStyle(status.tint)
     }
 }

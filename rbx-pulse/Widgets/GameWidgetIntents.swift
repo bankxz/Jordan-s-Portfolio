@@ -8,8 +8,16 @@ struct GameEntity: AppEntity {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Game"
     static let defaultQuery = GameEntityQuery()
 
-    let id: Int64
+    /// Universe ID as a string: App Intents entity identifiers must be a supported identifier type.
+    let id: String
     let name: String
+
+    init(id: Int64, name: String) {
+        self.id = String(id)
+        self.name = name
+    }
+
+    var universeID: Int64? { Int64(id) }
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(name)")
@@ -17,10 +25,10 @@ struct GameEntity: AppEntity {
 }
 
 struct GameEntityQuery: EntityQuery {
-    func entities(for identifiers: [Int64]) async throws -> [GameEntity] {
+    func entities(for identifiers: [GameEntity.ID]) async throws -> [GameEntity] {
         let games = WidgetData.loadSnapshot()?.games ?? []
-        return identifiers.compactMap { id in
-            games.first { $0.id == id }.map { GameEntity(id: $0.id, name: $0.name) }
+        return identifiers.compactMap { identifier in
+            games.first { String($0.id) == identifier }.map { GameEntity(id: $0.id, name: $0.name) }
         }
     }
 

@@ -82,8 +82,8 @@ notifications:
 4. Avoid deprecated patterns.
 5. Don't assume the newest API exists on every supported iPhone.
 
-Deployment target: **TBD — record it in `docs/decisions/` before the first feature.**
-Until then, treat anything marked iOS 26+ in a skill as needing an availability check.
+Deployment target: **iOS 17.0, Swift 6 language mode** (decision 0002). Anything newer than
+17.0 needs `#available` and a fallback.
 
 ## 5. Non-negotiable product/engineering facts
 
@@ -100,7 +100,27 @@ Until then, treat anything marked iOS 26+ in a skill as needing an availability 
 - **No unowned detached tasks.** Every `Task` has a clear owner and cancellation path.
 - **Backend is source of truth.** SwiftData is cache, preferences and offline queue only.
 
-## 6. UI rules
+## 6. Project layout and commands
+
+| Path | What |
+|---|---|
+| `Packages/RBXPulseKit` | Platform-neutral logic: models, goal/alert engines, formatting, routes, snapshots, API client, auth coordinator, sample data. Builds and tests on Linux. |
+| `App/` | SwiftUI app (`AppModel` is the single `@MainActor @Observable` state owner). |
+| `Widgets/` | Widget extension. Reads `WidgetSnapshot` only, never the network. |
+| `SharedUI/` | Views compiled into both the app and widgets. |
+| `Tests/AppTests`, `Tests/UITests` | Swift Testing for app models; XCUITest journeys + screenshots. |
+| `project.yml` | XcodeGen spec. The `.xcodeproj` is generated, not committed. |
+
+- Package tests anywhere: `cd Packages/RBXPulseKit && swift test` (add `--sanitize=thread` for concurrency work).
+  On Linux without a toolchain: `docker run --rm -v "$PWD":/pkg -w /pkg swift:6.1-noble swift test`.
+- App on a Mac: `brew install xcodegen && xcodegen generate && open RBXPulse.xcodeproj`.
+- Launch arguments for QA: `-demoMode normal|empty|failing`, `-colorScheme dark|light`,
+  `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXL`.
+- CI (`.github/workflows/rbx-pulse.yml`) runs package tests on Linux (+TSan) and macOS, builds the app,
+  runs unit + UI tests on a simulator, and uploads screenshots as the `rbx-pulse-screenshots` artifact.
+  Look at the screenshots: that's the visual QA pass when no Mac is available.
+
+## 7. UI rules
 
 - Reuse components (`MetricCard`, `GameCard`, `GoalCard`, `InsightCard`, `AlertRow`,
   `CampaignCard`, `CreatorPulseCard`, `EmptyState`, `LoadingCard`, `ErrorCard`). Don't
@@ -111,7 +131,7 @@ Until then, treat anything marked iOS 26+ in a skill as needing an availability 
 - Split views when they're hard to reason about, not to hit a line count (`swiftui-view-refactor`).
 - Inspect rendered UI, not just code — see `docs/qa/VISUAL_QA.md`.
 
-## 7. Release standard
+## 8. Release standard
 
 No release because "it seems to work". The bar is: we tried to break it and it stayed
 stable. Run `rbx-release-gate` / `docs/qa/RELEASE_CHECKLIST.md` before every build that

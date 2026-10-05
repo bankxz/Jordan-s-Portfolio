@@ -41,7 +41,7 @@ struct GameTimelineProvider: AppIntentTimelineProvider {
 
     private func entry(for configuration: SelectGameIntent, at date: Date) -> GameWidgetEntry {
         let snapshot = WidgetData.loadSnapshot()
-        let game = configuration.game.flatMap { snapshot?.game(id: $0.id) } ?? snapshot?.defaultGame
+        let game = configuration.game?.universeID.flatMap { snapshot?.game(id: $0) } ?? snapshot?.defaultGame
         return GameWidgetEntry(date: date, game: game, isPlaceholder: false)
     }
 
