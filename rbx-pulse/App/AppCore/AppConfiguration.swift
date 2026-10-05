@@ -7,6 +7,7 @@ import RBXPulseKit
 /// - `-demoMode normal|empty|failing` forces sample data in the given state
 /// - `-colorScheme dark|light` forces an appearance
 /// - `-UIPreferredContentSizeCategoryName <category>` (UIKit) forces a Dynamic Type size
+/// - `-openURL <url>` routes a deep link at launch (UI tests for widget/notification routing)
 struct AppConfiguration: Sendable {
     enum DataSource: Sendable, Equatable {
         case demo(DemoDashboardService.Mode)
@@ -19,10 +20,17 @@ struct AppConfiguration: Sendable {
 
     let dataSource: DataSource
     let forcedColorScheme: ForcedColorScheme?
+    var launchURL: URL?
 
     static func current(bundle: Bundle = .main, arguments: [String] = ProcessInfo.processInfo.arguments) -> AppConfiguration {
         let forcedScheme = value(after: "-colorScheme", in: arguments).flatMap(ForcedColorScheme.init(rawValue:))
+        let launchURL = value(after: "-openURL", in: arguments).flatMap(URL.init(string:))
+        var configuration = makeBase(bundle: bundle, arguments: arguments, forcedScheme: forcedScheme)
+        configuration.launchURL = launchURL
+        return configuration
+    }
 
+    private static func makeBase(bundle: Bundle, arguments: [String], forcedScheme: ForcedColorScheme?) -> AppConfiguration {
         if let mode = value(after: "-demoMode", in: arguments) {
             return AppConfiguration(dataSource: .demo(demoMode(named: mode)), forcedColorScheme: forcedScheme)
         }

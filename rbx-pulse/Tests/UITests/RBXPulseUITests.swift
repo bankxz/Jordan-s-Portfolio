@@ -131,6 +131,18 @@ final class RBXPulseUITests: XCTestCase {
         screenshot(app, "home-a11y-xxl-scrolled")
     }
 
+    /// Routing + navigation for a widget/notification URL, independent of OS URL delivery.
+    @MainActor
+    func testLaunchURLRoutesToGoal() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-demoMode", "normal", "-colorScheme", "light",
+                                "-openURL", "rbxpulse://goal/\(mainGoal)"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Tasks"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.tabBars.buttons["Goals"].isSelected)
+        screenshot(app, "launch-url-goal")
+    }
+
     /// Catches anything (our layout or a simulator compatibility mode) pushing content off-screen.
     @MainActor
     func testContentFitsScreenWidth() {
@@ -149,8 +161,8 @@ final class RBXPulseUITests: XCTestCase {
     func testDeepLinkOpensGame() throws {
         let app = launch()
         XCTAssertTrue(element(app, "creatorPulseCard").waitForExistence(timeout: 15))
-        // Same URL a widget tap sends.
-        app.open(try XCTUnwrap(URL(string: "rbxpulse://game/\(obbyRush)")))
+        // Same URL a widget tap sends, delivered by the system rather than injected.
+        XCUIDevice.shared.system.open(try XCTUnwrap(URL(string: "rbxpulse://game/\(obbyRush)")))
         // iOS may ask "Open in RBX Pulse?" for custom-scheme URLs.
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let openButton = springboard.buttons["Open"]

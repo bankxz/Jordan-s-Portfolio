@@ -166,6 +166,12 @@ struct AppConfigurationTests {
         #expect(config.forcedColorScheme == .dark)
     }
 
+    @Test func launchURLArgument() {
+        let config = AppConfiguration.current(arguments: ["app", "-openURL", "rbxpulse://goals"])
+        #expect(config.launchURL?.absoluteString == "rbxpulse://goals")
+        #expect(AppConfiguration.current(arguments: ["app"]).launchURL == nil)
+    }
+
     @Test func missingValueFallsBackToDemo() {
         let config = AppConfiguration.current(arguments: ["app", "-demoMode"])
         #expect(config.dataSource == .demo(.normal))

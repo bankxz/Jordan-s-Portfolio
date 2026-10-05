@@ -21,6 +21,9 @@ struct RBXPulseApp: App {
                 .onOpenURL { url in
                     model.handle(url: url)
                 }
+                .task {
+                    if let url = configuration.launchURL { model.handle(url: url) }
+                }
         }
     }
 
