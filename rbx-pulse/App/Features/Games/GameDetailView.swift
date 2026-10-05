@@ -6,6 +6,7 @@ struct GameDetailView: View {
     let gameID: Int64
 
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var range: TimeRange = .day
     @State private var series: SeriesState = .loading
 
@@ -51,19 +52,18 @@ struct GameDetailView: View {
 
                 chartCard
 
-                Grid(horizontalSpacing: 12, verticalSpacing: 12) {
-                    GridRow {
-                        MetricCard(title: "Playing", value: MetricFormatter.compact(game.stats.ccu),
-                                   change: game.stats.ccuChange, systemImage: "person.2")
-                        MetricCard(title: "Robux 24h",
-                                   value: game.stats.robux24h.map(MetricFormatter.robux) ?? "—",
-                                   systemImage: "chart.line.uptrend.xyaxis")
-                    }
-                    GridRow {
-                        MetricCard(title: "Visits", value: MetricFormatter.compact(game.stats.visits), systemImage: "eye")
-                        MetricCard(title: "Favourites", value: MetricFormatter.compact(game.stats.favourites),
-                                   systemImage: "star")
-                    }
+                // Two columns normally; one column at accessibility sizes so values never squeeze.
+                let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top),
+                                    count: typeSize.isAccessibilitySize ? 1 : 2)
+                LazyVGrid(columns: columns, spacing: 12) {
+                    MetricCard(title: "Playing", value: MetricFormatter.compact(game.stats.ccu),
+                               change: game.stats.ccuChange, systemImage: "person.2")
+                    MetricCard(title: "Robux 24h",
+                               value: game.stats.robux24h.map(MetricFormatter.robux) ?? "—",
+                               systemImage: "chart.line.uptrend.xyaxis")
+                    MetricCard(title: "Visits", value: MetricFormatter.compact(game.stats.visits), systemImage: "eye")
+                    MetricCard(title: "Favourites", value: MetricFormatter.compact(game.stats.favourites),
+                               systemImage: "star")
                 }
             }
             .padding(16)
@@ -182,6 +182,9 @@ struct CCUChart: View {
                 }
             }
             .frame(height: 220)
+            // Axis labels stop growing past xLarge so they stay readable inside a fixed-height plot;
+            // the header above still scales fully, and VoiceOver reads the data via Audio Graph.
+            .dynamicTypeSize(...DynamicTypeSize.xLarge)
             .accessibilityLabel("Concurrent players over the last \(range.title)")
         }
     }

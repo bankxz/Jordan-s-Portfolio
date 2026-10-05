@@ -70,3 +70,12 @@ First compile failure on CI was a bad find-and-replace of mine (`statusColor`). 
 Not verified: widgets on a Home Screen (WidgetKit timelines need a device or manual simulator check),
 App Group sharing (CI builds unsigned), physical device.
 Decisions: [0002](decisions/0002-deployment-target.md), [0003](decisions/0003-architecture-and-auth.md)
+QA rounds 2–4 (CI screenshots on iPhone 17 / iOS 26.2, Xcode 16.4):
+- Overflow fixed by the simulator change; `testContentFitsScreenWidth` passes.
+- Deep-link UI test failed because `XCUIApplication.open(_:)` didn't deliver the custom-scheme URL. The
+  screenshot showed the app still on Home. Switched to `XCUIDevice.shared.system.open(_:)` (the same
+  path a widget tap takes), and it passes. Added `-openURL` launch routing as a second, OS-independent test.
+- Accessibility XXL: game cards wrapped mid-number ("+9 / .7 / %"). Cards now stack vertically at
+  accessibility sizes, and numbers don't wrap.
+- Chart: the last x-axis label clipped at "now". Explicit marks at 20/50/80% of the range.
+Result: 24/24 app unit + UI tests green before round 4 (round 4 result below).
