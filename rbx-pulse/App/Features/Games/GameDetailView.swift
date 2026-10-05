@@ -128,6 +128,13 @@ struct CCUChart: View {
     /// Keep the chart cheap regardless of history length.
     private var points: [MetricPoint] { series.downsampled(to: 120) }
 
+    /// Three evenly spaced dates inside the visible range (20%, 50%, 80%).
+    private var axisDates: [Date] {
+        guard let first = points.first?.date, let last = points.last?.date, last > first else { return [] }
+        let span = last.timeIntervalSince(first)
+        return [0.2, 0.5, 0.8].map { first.addingTimeInterval(span * $0) }
+    }
+
     private var selectedPoint: MetricPoint? {
         guard let selectedDate else { return nil }
         return points.min { abs($0.date.timeIntervalSince(selectedDate)) < abs($1.date.timeIntervalSince(selectedDate)) }
@@ -155,8 +162,15 @@ struct CCUChart: View {
                 }
             }
             .chartXSelection(value: $selectedDate)
-            // Room for the last x-axis label, which otherwise clips at the trailing edge.
-            .chartXScale(range: .plotDimension(startPadding: 4, endPadding: 18))
+            .chartXAxis {
+                // Explicit marks kept away from the edges, so no label is clipped at "now".
+                AxisMarks(values: axisDates) { _ in
+                    AxisGridLine()
+                    AxisValueLabel(format: range == .day
+                                   ? .dateTime.hour()
+                                   : .dateTime.month(.abbreviated).day())
+                }
+            }
             .chartYAxis {
                 AxisMarks(position: .leading) { value in
                     AxisGridLine()

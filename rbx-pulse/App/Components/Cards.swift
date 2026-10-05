@@ -60,6 +60,8 @@ struct ChangeBadge: View {
         Label(MetricFormatter.percentChange(change),
               systemImage: isFlat ? "arrow.right" : (isUp ? "arrow.up.right" : "arrow.down.right"))
             .font(.caption.weight(.semibold).monospacedDigit())
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             .foregroundStyle(isFlat ? Color.secondary : (isUp ? Color.green : Color.red))
             .accessibilityLabel(Text("\(MetricFormatter.percentChange(change)) versus yesterday"))
     }
@@ -114,52 +116,74 @@ struct FreshnessLabel: View {
 }
 
 /// A game row/card: name, live CCU, change and sparkline.
+/// At accessibility text sizes it drops the icon and sparkline and stacks vertically, so numbers
+/// never wrap mid-value.
 struct GameCard: View {
     let game: Game
     var sparkline: [Double] = []
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(spacing: 14) {
-            GameIcon(name: game.name)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(game.name)
-                        .font(.headline)
-                        .lineLimit(2)
-                    if game.isFavourite {
-                        Image(systemName: "star.fill")
-                            .font(.caption)
-                            .foregroundStyle(.yellow)
-                            .accessibilityLabel("Favourite")
+        Group {
+            if typeSize.isAccessibilitySize {
+                details
+            } else {
+                HStack(spacing: 14) {
+                    GameIcon(name: game.name)
+                    details
+                    if sparkline.count > 1 {
+                        Sparkline(values: sparkline)
+                            .frame(width: 64, height: 32)
+                            .accessibilityHidden(true)
                     }
                 }
-                HStack(spacing: 8) {
-                    Text("\(MetricFormatter.compact(game.stats.ccu)) playing")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    if let change = game.stats.ccuChange {
-                        ChangeBadge(change: change)
-                    }
-                }
-                if game.isWorkingOn {
-                    Text("Working on")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.accentColor.opacity(0.15), in: .capsule)
-                        .foregroundStyle(.tint)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if sparkline.count > 1 {
-                Sparkline(values: sparkline)
-                    .frame(width: 64, height: 32)
-                    .accessibilityHidden(true)
             }
         }
         .card()
         .contentShape(.rect(cornerRadius: 18))
         .accessibilityElement(children: .combine)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(game.name)
+                    .font(.headline)
+                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 2)
+                if game.isFavourite {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                        .accessibilityLabel("Favourite")
+                }
+            }
+            if typeSize.isAccessibilitySize {
+                playing
+                if let change = game.stats.ccuChange { ChangeBadge(change: change) }
+            } else {
+                HStack(spacing: 8) {
+                    playing
+                    if let change = game.stats.ccuChange { ChangeBadge(change: change) }
+                }
+            }
+            if game.isWorkingOn {
+                Text("Working on")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.accentColor.opacity(0.15), in: .capsule)
+                    .foregroundStyle(.tint)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var playing: some View {
+        Text("\(MetricFormatter.compact(game.stats.ccu)) playing")
+            .font(.subheadline.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
     }
 }
 

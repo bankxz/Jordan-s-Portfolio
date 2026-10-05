@@ -129,6 +129,10 @@ final class RBXPulseUITests: XCTestCase {
         screenshot(app, "home-a11y-xxl")
         app.swipeUp()
         screenshot(app, "home-a11y-xxl-scrolled")
+        app.tabBars.buttons["Games"].tap()
+        element(app, "gameRow.\(attackAnimals)").tap()
+        XCTAssertTrue(app.staticTexts["Players now"].waitForExistence(timeout: 10))
+        screenshot(app, "game-detail-a11y-xxl")
     }
 
     /// Routing + navigation for a widget/notification URL, independent of OS URL delivery.
