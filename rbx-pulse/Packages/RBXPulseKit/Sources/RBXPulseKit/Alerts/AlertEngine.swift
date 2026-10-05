@@ -55,6 +55,14 @@ public struct AlertEvent: Hashable, Codable, Sendable {
     public var metric: Metric
     public var value: Double
     public var firedAt: Date
+
+    public init(ruleID: UUID, gameID: Int64, metric: Metric, value: Double, firedAt: Date) {
+        self.ruleID = ruleID
+        self.gameID = gameID
+        self.metric = metric
+        self.value = value
+        self.firedAt = firedAt
+    }
 }
 
 public enum AlertOutcome: Hashable, Sendable {
