@@ -37,6 +37,8 @@ jobs:
     name: iOS app (build, unit + UI tests, screenshots)
     runs-on: macos-15
     timeout-minutes: 60
+    permissions:
+      contents: write   # only to publish screenshots to the ci-screenshots/<branch> branch
     defaults:
       run:
         working-directory: rbx-pulse
@@ -96,12 +98,50 @@ jobs:
           fi
           ls -la build/screenshots | head -50
 
+      - name: Name and shrink screenshots
+        if: always()
+        run: |
+          mkdir -p build/named
+          python3 - <<'PY'
+          import json, os, shutil
+          src = "build/screenshots"
+          manifest = os.path.join(src, "manifest.json")
+          entries = json.load(open(manifest)) if os.path.exists(manifest) else []
+          for test in entries:
+              for att in test.get("attachments", []):
+                  exported = att.get("exportedFileName")
+                  name = (att.get("suggestedHumanReadableName") or exported or "shot").split("_0_")[0]
+                  if exported and exported.lower().endswith(".png"):
+                      base = name if name.endswith(".png") else name + ".png"
+                      shutil.copy(os.path.join(src, exported), os.path.join("build/named", base))
+          print(sorted(os.listdir("build/named")))
+          PY
+          for f in build/named/*.png; do [ -e "$f" ] && sips -Z 1000 "$f" >/dev/null; done
+          ls -la build/named
+
+      # Artifacts live in blob storage; a plain git branch is easier to fetch for review.
+      - name: Publish screenshots branch
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -n "$(ls build/named 2>/dev/null)" ] || { echo "no screenshots"; exit 0; }
+          BRANCH="ci-screenshots/${GITHUB_REF_NAME}"
+          cd build/named
+          git init -q -b main
+          git config user.name "rbx-pulse-ci"
+          git config user.email "rbx-pulse-ci@users.noreply.github.com"
+          echo "Screenshots from ${GITHUB_SHA} (run ${GITHUB_RUN_ID})" > README.md
+          git add -A && git commit -qm "Screenshots for ${GITHUB_SHA}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
+          echo "Published to ${BRANCH}"
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rbx-pulse-screenshots
-          path: rbx-pulse/build/screenshots
+          path: rbx-pulse/build/named
           retention-days: 14
 
       - name: Upload build log
