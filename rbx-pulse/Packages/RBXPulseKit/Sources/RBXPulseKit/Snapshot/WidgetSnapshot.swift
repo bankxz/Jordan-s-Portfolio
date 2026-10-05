@@ -80,7 +80,8 @@ public struct WidgetSnapshot: Hashable, Codable, Sendable {
     /// The game a widget shows when the user hasn't picked one.
     public var defaultGame: GameEntry? { games.first }
 
-    static func value(of metric: Metric, in stats: GameStats) -> Double {
+    /// Current value of `metric` for a game, used to evaluate goals.
+    public static func value(of metric: Metric, in stats: GameStats) -> Double {
         switch metric {
         case .ccu: Double(stats.ccu)
         case .visits: Double(stats.visits)
@@ -130,4 +131,12 @@ public struct SnapshotStore: Sendable {
               snapshot.version == WidgetSnapshot.currentVersion else { return nil }
         return snapshot
     }
+}
+
+/// Identifiers shared by the app and its extensions.
+public enum SharedConfiguration {
+    public static let appGroup = "group.com.rbxpulse.shared"
+    /// WidgetKit `kind` strings. Changing one orphans users' installed widgets.
+    public static let favouriteGameWidgetKind = "FavouriteGameWidget"
+    public static let goalsWidgetKind = "GoalsWidget"
 }

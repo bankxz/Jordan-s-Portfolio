@@ -1,0 +1,113 @@
+name: RBX Pulse
+
+on:
+  push:
+    paths:
+      - "rbx-pulse/**"
+      - ".github/workflows/rbx-pulse.yml"
+  pull_request:
+    paths:
+      - "rbx-pulse/**"
+      - ".github/workflows/rbx-pulse.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: rbx-pulse-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  kit-linux:
+    name: RBXPulseKit (Linux, Swift 6.1)
+    runs-on: ubuntu-latest
+    container: swift:6.1-noble
+    defaults:
+      run:
+        working-directory: rbx-pulse/Packages/RBXPulseKit
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test
+      - name: Test with ThreadSanitizer
+        run: swift test --sanitize=thread
+
+  ios:
+    name: iOS app (build, unit + UI tests, screenshots)
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: rbx-pulse
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: RBXPulseKit tests (macOS)
+        working-directory: rbx-pulse/Packages/RBXPulseKit
+        run: swift test
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Pick simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted((k for k in devices if "iOS" in k), reverse=True)
+          for runtime in runtimes:
+              phones = [d for d in devices[runtime] if d["name"].startswith("iPhone") and d["isAvailable"]]
+              preferred = [d for d in phones if "Pro" not in d["name"] and "Plus" not in d["name"]] or phones
+              if preferred:
+                  print(preferred[0]["udid"]); break
+          ')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices available | grep "$UDID"
+
+      - name: Build and test
+        run: |
+          set +e
+          mkdir -p build
+          xcodebuild test \
+            -project RBXPulse.xcodeproj \
+            -scheme RBXPulse \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath build/Tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO > build.log 2>&1
+          status=$?
+          grep -E "error:|warning: .*/rbx-pulse/|Test Case .*(passed|failed)|Test case .*(passed|failed)|✔|✘|\*\* (TEST|BUILD)" build.log | tail -400
+          exit $status
+
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p build/screenshots
+          if [ -d build/Tests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots || true
+          fi
+          ls -la build/screenshots | head -50
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbx-pulse-screenshots
+          path: rbx-pulse/build/screenshots
+          retention-days: 14
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbx-pulse-build-log
+          path: rbx-pulse/build.log
+          retention-days: 14

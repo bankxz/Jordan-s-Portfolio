@@ -43,3 +43,12 @@ roblox-cloud, guide-swift-testing (async-tests.md)
 Reason: single-flight rotating-token refresh is the main race in the app; roblox-cloud
 covers the OAuth/PKCE/rotation rules; async tests prove one refresh under N concurrent callers.
 Deployment-target notes: Keychain store is `#if canImport(Security)`.
+
+## 2026-10-05 — Slice 3: iOS app shell, Home/Games/Goals/Ads/Alerts, game chart, widgets
+
+Skills: ios-dev (correctness checklist), swiftui-ui-patterns (app-wiring, async-state), hig (44pt targets,
+tab count, Dynamic Type), guide-swiftui-charts (chartXSelection, RuleMark, accessible labels), widgetkit,
+ios-app-intents (widget configuration), xcuitest (smoke journeys + screenshots)
+Reason: first runnable app; widget must read the cached snapshot only; charts must stay simple and accessible.
+Deployment-target notes: iOS 17 APIs only (`@Observable`, `chartXSelection`, `AppIntentConfiguration`,
+`containerBackground`). Nothing newer than 17.0 is used, so no `#available` gates yet.
