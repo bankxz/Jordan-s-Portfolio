@@ -88,8 +88,8 @@ targets:
     sources:
       - path: Tests/AppTests
     dependencies:
+      # RBXPulseKit comes through the host app; linking it here too would duplicate its types at runtime.
       - target: RBXPulse
-      - package: RBXPulseKit
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

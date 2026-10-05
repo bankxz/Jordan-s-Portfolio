@@ -1,3 +1,4 @@
+import AppIntents
 import RBXPulseKit
 import SwiftUI
 import WidgetKit
@@ -7,19 +8,25 @@ struct GoalsEntry: TimelineEntry {
     let goals: [WidgetSnapshot.GoalEntry]
 }
 
-struct GoalsProvider: TimelineProvider {
+/// No options yet; using the App Intent provider keeps the async API (no completion handlers).
+struct GoalsWidgetIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Goals"
+    static let description = IntentDescription("Shows progress on your active goals.")
+}
+
+struct GoalsProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> GoalsEntry {
         GoalsEntry(date: .now, goals: Self.sample)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping @Sendable (GoalsEntry) -> Void) {
+    func snapshot(for configuration: GoalsWidgetIntent, in context: Context) async -> GoalsEntry {
         let goals = WidgetData.loadSnapshot()?.goals ?? []
-        completion(GoalsEntry(date: .now, goals: goals.isEmpty && context.isPreview ? Self.sample : goals))
+        return GoalsEntry(date: .now, goals: goals.isEmpty && context.isPreview ? Self.sample : goals)
     }
 
-    func getTimeline(in context: Context, completion: @escaping @Sendable (Timeline<GoalsEntry>) -> Void) {
+    func timeline(for configuration: GoalsWidgetIntent, in context: Context) async -> Timeline<GoalsEntry> {
         let entry = GoalsEntry(date: .now, goals: WidgetData.loadSnapshot()?.goals ?? [])
-        completion(Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(60 * 60))))
+        return Timeline(entries: [entry], policy: .after(.now.addingTimeInterval(60 * 60)))
     }
 
     static let sample: [WidgetSnapshot.GoalEntry] = [
@@ -31,7 +38,8 @@ struct GoalsProvider: TimelineProvider {
 
 struct GoalsWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: SharedConfiguration.goalsWidgetKind, provider: GoalsProvider()) { entry in
+        AppIntentConfiguration(kind: SharedConfiguration.goalsWidgetKind, intent: GoalsWidgetIntent.self,
+                               provider: GoalsProvider()) { entry in
             GoalsWidgetView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }

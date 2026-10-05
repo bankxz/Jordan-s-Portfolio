@@ -171,17 +171,24 @@ final class AppModel {
     }
 
     static func message(for error: any Error) -> String {
-        switch error {
-        case AuthError.signedOut, AuthError.sessionExpired, APIError.unauthorized:
-            "Your Roblox connection expired. Reconnect to keep your stats updating."
-        case APIError.rateLimited:
-            "Roblox is busy right now. We'll try again shortly."
-        case APIError.server, APIError.unexpectedStatus:
-            "RBX Pulse is having trouble right now. Try again in a moment."
-        case is URLError:
-            "You're offline. Check your connection and try again."
-        default:
-            "Something went wrong loading your stats."
+        let reconnect = "Your Roblox connection expired. Reconnect to keep your stats updating."
+        let generic = "Something went wrong loading your stats."
+        if error is AuthError { return reconnect }
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .unauthorized:
+                return reconnect
+            case .rateLimited:
+                return "Roblox is busy right now. We'll try again shortly."
+            case .server, .unexpectedStatus:
+                return "RBX Pulse is having trouble right now. Try again in a moment."
+            case .forbidden, .notFound, .decoding:
+                return generic
+            }
         }
+        if error is URLError {
+            return "You're offline. Check your connection and try again."
+        }
+        return generic
     }
 }

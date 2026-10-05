@@ -17,6 +17,18 @@ public struct WidgetSnapshot: Hashable, Codable, Sendable {
         public var isFavourite: Bool
         public var sparkline: [Double]
         public var updatedAt: Date
+
+        public init(id: Int64, name: String, ccu: Int, ccuChange: Double?, robux24h: Int64?,
+                    isFavourite: Bool, sparkline: [Double], updatedAt: Date) {
+            self.id = id
+            self.name = name
+            self.ccu = ccu
+            self.ccuChange = ccuChange
+            self.robux24h = robux24h
+            self.isFavourite = isFavourite
+            self.sparkline = sparkline
+            self.updatedAt = updatedAt
+        }
     }
 
     public struct GoalEntry: Identifiable, Hashable, Codable, Sendable {
@@ -24,6 +36,13 @@ public struct WidgetSnapshot: Hashable, Codable, Sendable {
         public var title: String
         public var progress: Double
         public var status: GoalStatus
+
+        public init(id: UUID, title: String, progress: Double, status: GoalStatus) {
+            self.id = id
+            self.title = title
+            self.progress = progress
+            self.status = status
+        }
     }
 
     public var version: Int
