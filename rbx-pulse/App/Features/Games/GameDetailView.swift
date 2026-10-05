@@ -155,6 +155,8 @@ struct CCUChart: View {
                 }
             }
             .chartXSelection(value: $selectedDate)
+            // Room for the last x-axis label, which otherwise clips at the trailing edge.
+            .chartXScale(range: .plotDimension(startPadding: 4, endPadding: 18))
             .chartYAxis {
                 AxisMarks(position: .leading) { value in
                     AxisGridLine()

@@ -156,7 +156,9 @@ final class RBXPulseUITests: XCTestCase {
         let openButton = springboard.buttons["Open"]
         if openButton.waitForExistence(timeout: 3) { openButton.tap() }
         let title = element(app, "gameDetailTitle")
-        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        let appeared = title.waitForExistence(timeout: 10)
+        screenshot(app, "deeplink-after-open")
+        XCTAssertTrue(appeared, "Game detail didn't open. State: \(app.debugDescription.prefix(2_000))")
         XCTAssertEqual(title.label, "Obby Rush")
         screenshot(app, "deeplink-game")
     }

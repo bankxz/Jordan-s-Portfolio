@@ -26,3 +26,16 @@ Every important component (`MetricCard`, `GameCard`, `GoalCard`, `InsightCard`,
 
 normal · empty · loading · error · very long text · huge values · zero values ·
 light · dark · large Dynamic Type
+
+## Getting screenshots without a Mac
+
+Every push that touches `rbx-pulse/` runs the UI tests on CI. They save named screenshots
+(`home-light`, `home-dark`, `home-a11y-xxl`, `home-empty`, `home-error`, `games-light`,
+`game-detail-7d-light`, `goal-detail-light`, `ads-light`, `alerts-light`, …), and CI publishes them,
+with `summary.txt` and `test-summary.json`, to the `ci-screenshots/<branch>` branch:
+
+```bash
+git fetch origin ci-screenshots/<branch> && git worktree add /tmp/shots FETCH_HEAD
+```
+
+Open every image and walk through the checklist above. Screenshots are the evidence for a visual QA pass.
