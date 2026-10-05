@@ -78,4 +78,18 @@ QA rounds 2–4 (CI screenshots on iPhone 17 / iOS 26.2, Xcode 16.4):
 - Accessibility XXL: game cards wrapped mid-number ("+9 / .7 / %"). Cards now stack vertically at
   accessibility sizes, and numbers don't wrap.
 - Chart: the last x-axis label clipped at "now". Explicit marks at 20/50/80% of the range.
-Result: 24/24 app unit + UI tests green before round 4 (round 4 result below).
+- Round 5: game detail at accessibility sizes uses one metric column, and chart axis text is capped at xLarge.
+Result: CI run 37376194351 (commit 21fe261) is green. 24/24 app unit + UI tests on iPhone 17 / iOS 26.2,
+95/95 package tests on Linux (+TSan) and macOS. All 18 screenshots reviewed.
+Decisions: [0004](decisions/0004-verification-without-a-mac.md)
+
+### Next slices (not started)
+1. Connect Roblox: `ASWebAuthenticationSession` → backend `/v1/auth/roblox/start` → session exchange
+   (needs the backend). Skills: swift-concurrency, roblox-cloud, xcuitest.
+2. Backend service implementing `docs/api/backend-contract.md` (Swift, reusing RBXPulseKit; server-side
+   AlertEngine + APNs).
+3. Notifications: permission flow, categories, deep links. Skills: usernotifications.
+4. Live Activities ("Watch Game"): ActivityKit + push updates. Push-to-start needs `#available(iOS 17.2, *)`.
+5. SwiftData cache for offline launch. Skills: swiftdata, guide-swiftdata.
+6. Groups screen, goal/alert-rule editing.
+7. Before the first TestFlight: rbx-release-gate (ETTrace, memgraph, physical device).

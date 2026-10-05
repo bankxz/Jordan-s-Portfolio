@@ -65,8 +65,12 @@ drive the UI, and read the logs. Look at the rendered result and walk through th
 rows in `docs/qa/VISUAL_QA.md`: loading, empty, error, long text, huge numbers, Dark Mode,
 large Dynamic Type.
 
-In a Linux or cloud session you can't build iOS code. Say so plainly in the response and
-the dev log ("not built — needs Mac verification"). Never report it as verified.
+In a Linux or cloud session there's no Simulator, but you can still verify (decision 0004):
+run package tests in the `swift:6.1-noble` Docker image, push to trigger the macOS CI job, then
+fetch the `ci-screenshots/<branch>` branch and actually look at every screenshot plus
+`test-summary.json`. Add a UI-test screenshot for any new screen or state. Anything CI can't cover
+(Home Screen widgets, App Group sharing, push, device performance) must be written down as
+unverified, never reported as verified.
 
 ## 6. Test by trying to break it
 

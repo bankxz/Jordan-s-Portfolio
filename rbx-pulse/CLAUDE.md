@@ -68,9 +68,8 @@ small feature → build → run in Simulator → inspect → test → checkpoint
 "It compiles" is not done. "It seems to work" is not done. Done means it was built,
 run, interacted with, tested, and we tried to break it.
 
-Simulator work needs macOS + Xcode. In a Linux/cloud session you cannot build or run
-iOS code: say so explicitly in the log and hand verification back to a Mac session
-rather than claiming it was verified.
+Simulator work needs macOS + Xcode. From a Linux/cloud session, verify through the macOS CI job
+and its published screenshots (decision 0004), and state plainly what CI can't cover.
 
 ## 4. Current Apple API rule
 
