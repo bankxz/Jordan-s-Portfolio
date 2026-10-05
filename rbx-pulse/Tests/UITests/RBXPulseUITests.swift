@@ -131,12 +131,30 @@ final class RBXPulseUITests: XCTestCase {
         screenshot(app, "home-a11y-xxl-scrolled")
     }
 
+    /// Catches anything (our layout or a simulator compatibility mode) pushing content off-screen.
+    @MainActor
+    func testContentFitsScreenWidth() {
+        let app = launch()
+        let card = element(app, "creatorPulseCard")
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+        let window = app.windows.firstMatch.frame
+        let screenWidth = XCUIScreen.main.screenshot().image.size.width
+        XCTAssertEqual(window.width, screenWidth, accuracy: 1, "App window is wider than the screen")
+        XCTAssertLessThanOrEqual(card.frame.maxX, window.maxX - 8, "Card touches the right edge")
+        XCTAssertGreaterThanOrEqual(card.frame.minX, 8)
+        XCTAssertEqual(card.frame.minX, window.maxX - card.frame.maxX, accuracy: 2, "Card isn't centred")
+    }
+
     @MainActor
     func testDeepLinkOpensGame() throws {
         let app = launch()
         XCTAssertTrue(element(app, "creatorPulseCard").waitForExistence(timeout: 15))
         // Same URL a widget tap sends.
         app.open(try XCTUnwrap(URL(string: "rbxpulse://game/\(obbyRush)")))
+        // iOS may ask "Open in RBX Pulse?" for custom-scheme URLs.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let openButton = springboard.buttons["Open"]
+        if openButton.waitForExistence(timeout: 3) { openButton.tap() }
         let title = element(app, "gameDetailTitle")
         XCTAssertTrue(title.waitForExistence(timeout: 10))
         XCTAssertEqual(title.label, "Obby Rush")

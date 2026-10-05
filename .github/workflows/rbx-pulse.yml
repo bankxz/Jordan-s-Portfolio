@@ -62,18 +62,20 @@ jobs:
       - name: Pick simulator
         id: sim
         run: |
-          UDID=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
+          # Prefer a plain "iPhone NN" (no Pro/Plus/Air/e) on the newest runtime: its screen size is
+          # known to the SDK, so the app isn't laid out in a compatibility mode.
+          read -r UDID NAME <<<"$(xcrun simctl list devices available -j | python3 -c '
+          import json, re, sys
           devices = json.load(sys.stdin)["devices"]
-          runtimes = sorted((k for k in devices if "iOS" in k), reverse=True)
-          for runtime in runtimes:
-              phones = [d for d in devices[runtime] if d["name"].startswith("iPhone") and d["isAvailable"]]
-              preferred = [d for d in phones if "Pro" not in d["name"] and "Plus" not in d["name"]] or phones
-              if preferred:
-                  print(preferred[0]["udid"]); break
-          ')
+          for runtime in sorted((k for k in devices if "iOS" in k), reverse=True):
+              phones = [d for d in devices[runtime] if d["isAvailable"] and re.fullmatch(r"iPhone \d+", d["name"])]
+              phones.sort(key=lambda d: int(d["name"].split()[1]), reverse=True)
+              if phones:
+                  print(phones[0]["udid"], phones[0]["name"]); break
+          ')"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-          xcrun simctl list devices available | grep "$UDID"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Using $NAME ($UDID)"
 
       - name: Build and test
         run: |
@@ -117,6 +119,15 @@ jobs:
           print(sorted(os.listdir("build/named")))
           PY
           for f in build/named/*.png; do [ -e "$f" ] && sips -Z 1000 "$f" >/dev/null; done
+          {
+            xcodebuild -version
+            echo "Simulator: ${{ steps.sim.outputs.name }}"
+            echo
+            grep -E "error:|Test case .*(passed|failed)|Test Case .*(passed|failed)|✘|\*\* (TEST|BUILD)" build.log | tail -200 || true
+          } > build/named/summary.txt
+          if [ -d build/Tests.xcresult ]; then
+            xcrun xcresulttool get test-results summary --path build/Tests.xcresult > build/named/test-summary.json 2>&1 || true
+          fi
           ls -la build/named
 
       # Artifacts live in blob storage; a plain git branch is easier to fetch for review.

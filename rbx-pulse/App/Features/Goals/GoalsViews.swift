@@ -68,15 +68,13 @@ struct GoalDetailView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
+        .navigationTitle("Goal")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private func detail(_ goal: Goal, evaluation: GoalEvaluation) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(goal.title)
-                    .font(.title2.weight(.bold))
-                    .accessibilityAddTraits(.isHeader)
                 GoalCard(goal: goal, evaluation: evaluation)
 
                 VStack(alignment: .leading, spacing: 8) {

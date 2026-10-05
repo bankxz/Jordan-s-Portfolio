@@ -43,6 +43,8 @@ struct MetricCard: View {
                 ChangeBadge(change: change)
             }
         }
+        // Fill the grid cell so cards in one row share a height.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .card()
         .accessibilityElement(children: .combine)
     }
