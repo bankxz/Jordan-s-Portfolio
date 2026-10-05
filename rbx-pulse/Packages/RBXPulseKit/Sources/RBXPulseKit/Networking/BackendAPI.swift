@@ -81,20 +81,43 @@ public protocol DashboardService: Sendable {
 
 /// Backend endpoints. Contract documented in docs/api/backend-contract.md.
 public enum BackendAPI {
-    struct FlagBody: Encodable {
-        var value: Bool
+    // Request/response bodies are public so the server decodes exactly what the app encodes.
+
+    public struct FlagBody: Codable, Sendable, Hashable {
+        public var value: Bool
+        public init(value: Bool) { self.value = value }
     }
 
-    struct SessionCodeBody: Encodable {
-        var code: String
+    public struct SessionCodeBody: Codable, Sendable, Hashable {
+        public var code: String
+        public init(code: String) { self.code = code }
     }
 
-    struct RefreshBody: Encodable {
-        var refreshToken: String
+    public struct RefreshBody: Codable, Sendable, Hashable {
+        public var refreshToken: String
+        public init(refreshToken: String) { self.refreshToken = refreshToken }
     }
 
-    public struct AuthStart: Decodable, Sendable, Hashable {
+    public struct AuthStart: Codable, Sendable, Hashable {
         public var authorizeURL: URL
+        public init(authorizeURL: URL) { self.authorizeURL = authorizeURL }
+    }
+
+    public struct DeviceBody: Codable, Sendable, Hashable {
+        /// Hex-encoded APNs device token.
+        public var apnsToken: String
+        /// `true` for development builds (APNs sandbox).
+        public var sandbox: Bool
+        public init(apnsToken: String, sandbox: Bool) {
+            self.apnsToken = apnsToken
+            self.sandbox = sandbox
+        }
+    }
+
+    /// Error body returned by the backend for 4xx/5xx responses.
+    public struct ErrorBody: Codable, Sendable, Hashable {
+        public var error: String
+        public init(error: String) { self.error = error }
     }
 
     public static func dashboard() -> Endpoint<Dashboard> {
@@ -127,6 +150,26 @@ public enum BackendAPI {
     public static func refresh(refreshToken: String) -> Endpoint<AuthTokens> {
         Endpoint(method: .post, path: "v1/auth/refresh", body: encode(RefreshBody(refreshToken: refreshToken)),
                  requiresAuth: false)
+    }
+
+    public static func logout() -> Endpoint<NoContent> {
+        Endpoint(method: .post, path: "v1/auth/logout")
+    }
+
+    public static func registerDevice(_ body: DeviceBody) -> Endpoint<NoContent> {
+        Endpoint(method: .post, path: "v1/devices", body: encode(body))
+    }
+
+    public static func alertRules() -> Endpoint<[AlertRule]> {
+        Endpoint(path: "v1/alerts/rules")
+    }
+
+    public static func saveAlertRule(_ rule: AlertRule) -> Endpoint<AlertRule> {
+        Endpoint(method: .put, path: "v1/alerts/rules/\(rule.id.uuidString)", body: encode(rule))
+    }
+
+    public static func deleteAlertRule(id: UUID) -> Endpoint<NoContent> {
+        Endpoint(method: .delete, path: "v1/alerts/rules/\(id.uuidString)")
     }
 
     private static func encode(_ value: some Encodable) -> Data? {

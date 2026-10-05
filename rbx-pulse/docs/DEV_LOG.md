@@ -93,3 +93,13 @@ Decisions: [0004](decisions/0004-verification-without-a-mac.md)
 5. SwiftData cache for offline launch. Skills: swiftdata, guide-swiftdata.
 6. Groups screen, goal/alert-rule editing.
 7. Before the first TestFlight: rbx-release-gate (ETTrace, memgraph, physical device).
+
+## 2026-10-05 — Slice 4: Backend (Server/)
+
+Skills: roblox-cloud (OAuth flow, token rotation, Open Cloud mechanics), roblox-security (server
+authority, rate limiting, idempotency, secrets server-side), guide-swift-concurrency (single-flight
+refresh, structured worker lifecycles), guide-swift-testing (async tests, concurrency stress)
+Reason: the backend owns Roblox OAuth and rotating tokens — the riskiest code in the product.
+Primary sources read first (Roblox/creator-docs): oauth2-reference, oauth2-develop, oauth2-registration,
+analytics guide + metrics, Open Cloud openapi.json scopes. See decision 0005.
+Deployment-target notes: server only (Linux, Swift 6.1). No iOS APIs.
