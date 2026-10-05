@@ -1,0 +1,23 @@
+{
+  "skill_name": "rbx-feature-workflow",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "add a favourite game widget to rbx pulse — small and medium sizes, user picks which game in the widget config, shows CCU and a tiny sparkline",
+      "expected_output": "Logs a skills report (widgetkit, ios-app-intents, swiftui, guide-swiftui-charts, swift-testing), checks API availability vs deployment target, designs around cached timeline snapshots with stale-data handling, uses an AppIntent configuration, and plans or does Simulator verification of every family.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "users are getting randomly logged out of roblox after the app has been in the background a while. pretty sure it's the token refresh. can you fix it",
+      "expected_output": "Uses ios-debugger-agent and swift-concurrency/guide-swift-concurrency (and roblox-cloud), identifies concurrent refreshes invalidating rotated refresh tokens, serializes refresh behind one actor, and adds a Swift Testing test proving N concurrent callers trigger exactly one refresh.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "the Home feed stutters when I scroll past the charts, especially with like 120 games favourited",
+      "expected_output": "Profiles before changing code (ios-ettrace-performance and swiftui-performance-audit / guide-swiftui-performance-audit), reports measured hotspots, applies targeted fixes, and re-measures.",
+      "files": []
+    }
+  ]
+}

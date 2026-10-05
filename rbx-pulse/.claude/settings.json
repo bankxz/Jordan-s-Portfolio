@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "apple-skills": {
+      "source": {
+        "source": "github",
+        "repo": "Prisma-Labs-Dev/apple-skills"
+      }
+    },
+    "openai-build-ios-skills": {
+      "source": {
+        "source": "github",
+        "repo": "mtfum/openai-build-ios-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "apple-skills@apple-skills": true,
+    "build-ios-apps@openai-build-ios-skills": true
+  }
+}

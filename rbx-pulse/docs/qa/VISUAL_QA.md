@@ -1,0 +1,28 @@
+# Visual QA
+
+Inspect the rendered UI in the Simulator or on a device. Reading the SwiftUI code is
+not enough.
+
+## Per screen / component
+
+- [ ] Spacing and alignment are consistent with the shared components
+- [ ] No clipping or truncation of important values
+- [ ] Scroll behaviour (inertia, pull-to-refresh, scroll-to-top)
+- [ ] Safe areas (notch, Dynamic Island, home indicator)
+- [ ] Keyboard interaction (fields not covered, dismiss behaviour)
+- [ ] Long titles (game names, group names)
+- [ ] Very large numbers (CCU 1,000,000+, Robux 10,000,000+) and zero values
+- [ ] Small device (iPhone SE / mini class) and large device (Pro Max class)
+- [ ] Light Mode and Dark Mode
+- [ ] Dynamic Type at default, largest standard size and largest accessibility size
+- [ ] VoiceOver labels on metrics and charts
+- [ ] States: loading · empty · offline · error · signed-out · stale data
+
+## Preview matrix
+
+Every important component (`MetricCard`, `GameCard`, `GoalCard`, `InsightCard`,
+`AlertRow`, `CampaignCard`, `CreatorPulseCard`, `EmptyState`, `LoadingCard`,
+`ErrorCard`) has Xcode previews for:
+
+normal · empty · loading · error · very long text · huge values · zero values ·
+light · dark · large Dynamic Type
