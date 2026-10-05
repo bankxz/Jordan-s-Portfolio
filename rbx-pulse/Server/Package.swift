@@ -16,6 +16,7 @@ let package = Package(
         .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.21.0"),
         .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.21.0"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.0.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.0.0"),
     ],
     targets: [
         .target(
@@ -27,6 +28,7 @@ let package = Package(
                 .product(name: "AsyncHTTPClient", package: "async-http-client"),
                 .product(name: "PostgresNIO", package: "postgres-nio"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
             ]
         ),
         .executableTarget(

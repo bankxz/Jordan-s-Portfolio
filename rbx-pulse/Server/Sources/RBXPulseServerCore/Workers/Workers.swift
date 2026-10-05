@@ -177,20 +177,25 @@ public struct AlertEvaluator: Sendable {
 public struct PeriodicService: Service {
     let name: String
     let interval: Duration
+    let initialDelay: Duration
     let logger: Logger
     let job: @Sendable (Logger) async throws -> Void
 
-    public init(name: String, interval: Duration, logger: Logger, job: @escaping @Sendable (Logger) async throws -> Void) {
+    /// `initialDelay` lets the server finish start-up work (database migrations) before the first run.
+    public init(name: String, interval: Duration, initialDelay: Duration = .zero, logger: Logger,
+                job: @escaping @Sendable (Logger) async throws -> Void) {
         self.name = name
         self.interval = interval
+        self.initialDelay = initialDelay
         self.logger = logger
         self.job = job
     }
 
     public func run() async throws {
         let logger = self.logger
-        let name = self.name, interval = self.interval, job = self.job
+        let name = self.name, interval = self.interval, job = self.job, initialDelay = self.initialDelay
         try? await cancelWhenGracefulShutdown {
+            try await Task.sleep(for: initialDelay)
             while Task.isCancelled == false {
                 do {
                     try await job(logger)

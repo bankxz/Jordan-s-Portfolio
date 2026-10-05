@@ -1,4 +1,6 @@
 import Foundation
+import Logging
+import PostgresNIO
 import RBXPulseKit
 import Testing
 @testable import RBXPulseServerCore
@@ -234,9 +236,36 @@ struct StoreContractTests {
     }
 }
 
-/// Postgres access for tests: enabled only when `TEST_DATABASE_URL` is set.
+/// Postgres for tests: set `TEST_DATABASE_URL` (see Server/README.md). With `REQUIRE_POSTGRES=1` (CI),
+/// a missing database fails the suite instead of silently skipping the Postgres cases.
 enum TestPostgres {
+    struct NotConfigured: Error {}
+
     static func makeStore() async throws -> (any Store)? {
-        nil  // Replaced when PostgresStore lands.
+        let env = ProcessInfo.processInfo.environment
+        guard let url = env["TEST_DATABASE_URL"], url.isEmpty == false else {
+            if env["REQUIRE_POSTGRES"] == "1" { throw NotConfigured() }
+            return nil
+        }
+        return try await shared.store(url: url)
+    }
+
+    static let shared = Holder()
+
+    /// One client and one migration for the whole test process.
+    actor Holder {
+        private var store: PostgresStore?
+        private var runTask: Task<Void, Never>?
+
+        func store(url: String) async throws -> PostgresStore {
+            if let store { return store }
+            let client = PostgresClient(configuration: try PostgresStore.configuration(url: url))
+            // Lives for the test process; the pool needs `run()` to make connections.
+            runTask = Task { await client.run() }
+            let created = PostgresStore(client: client, logger: Logger(label: "test-postgres"))
+            try await created.migrate()
+            store = created
+            return created
+        }
     }
 }

@@ -183,6 +183,8 @@ public actor InMemoryStore: Store {
     public func alertRuleOwner(ruleID: UUID) -> UUID? { rules[ruleID]?.userID }
 
     public func saveAlertRule(userID: UUID, rule: AlertRule) {
+        // A rule never changes owner (same guarantee as the Postgres upsert).
+        if let existing = rules[rule.id], existing.userID != userID { return }
         rules[rule.id] = OwnedAlertRule(userID: userID, rule: rule)
     }
 

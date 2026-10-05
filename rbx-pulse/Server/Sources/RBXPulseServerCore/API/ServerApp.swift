@@ -1,6 +1,7 @@
 import Foundation
 import Hummingbird
 import Logging
+import PostgresNIO
 
 /// Everything the HTTP layer and workers depend on. Tests build this with fakes.
 public struct ServerDependencies: Sendable {
@@ -47,7 +48,17 @@ public enum RBXPulseServerApp {
         logger.info("Starting", metadata: ["config": "\(config)"])
 
         let http = LiveHTTPExecutor()
-        let store: any Store = try await makeStore(config: config, logger: logger)
+        let postgres: PostgresClient?
+        let store: any Store
+        if let databaseURL = config.databaseURL {
+            let client = PostgresClient(configuration: try PostgresStore.configuration(url: databaseURL), backgroundLogger: logger)
+            postgres = client
+            store = PostgresStore(client: client, logger: logger)
+        } else {
+            logger.warning("DATABASE_URL not set: using the in-memory store (data is lost on restart)")
+            postgres = nil
+            store = InMemoryStore()
+        }
         let deps = ServerDependencies(
             store: store,
             oauth: RobloxOAuthClient(config: config.roblox, http: http),
@@ -67,18 +78,15 @@ public enum RBXPulseServerApp {
         var app = Application(router: buildRouter(deps),
                               configuration: .init(address: .hostname(config.host, port: config.port)),
                               logger: logger)
+        if let postgres, let pgStore = store as? PostgresStore {
+            // The client must be running before migrations; services start before the server accepts traffic.
+            app.addServices(postgres)
+            app.beforeServerStarts { try await pgStore.migrate() }
+        }
         app.addServices(
-            PeriodicService(name: "stats", interval: config.statsPollInterval, logger: logger) { try await stats.tick(logger: $0) },
-            PeriodicService(name: "revenue", interval: config.revenuePollInterval, logger: logger) { try await revenue.tick(logger: $0) }
+            PeriodicService(name: "stats", interval: config.statsPollInterval, initialDelay: .seconds(5), logger: logger) { try await stats.tick(logger: $0) },
+            PeriodicService(name: "revenue", interval: config.revenuePollInterval, initialDelay: .seconds(30), logger: logger) { try await revenue.tick(logger: $0) }
         )
         try await app.runService()
-    }
-
-    static func makeStore(config: ServerConfig, logger: Logger) async throws -> any Store {
-        guard config.databaseURL != nil else {
-            logger.warning("DATABASE_URL not set: using the in-memory store (data is lost on restart)")
-            return InMemoryStore()
-        }
-        return InMemoryStore()  // Replaced by PostgresStore in the next slice.
     }
 }
