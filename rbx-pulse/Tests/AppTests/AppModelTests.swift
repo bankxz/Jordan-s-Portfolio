@@ -154,6 +154,7 @@ struct AppModelTests {
 
     @Test func errorMessages() {
         #expect(AppModel.message(for: AuthError.sessionExpired).contains("Reconnect"))
+        #expect(AppModel.message(for: APIError.reconnectRequired).contains("Reconnect"))
         #expect(AppModel.message(for: APIError.rateLimited(retryAfter: 3)).contains("busy"))
         #expect(AppModel.message(for: URLError(.timedOut)).contains("offline"))
     }

@@ -104,6 +104,7 @@ struct APIClientTests {
         (429, ["Retry-After": "-5"], .rateLimited(retryAfter: nil)),
         (403, [:], .forbidden),
         (404, [:], .notFound),
+        (409, [:], .reconnectRequired),
         (500, [:], .server(status: 500)),
         (503, [:], .server(status: 503)),
         (302, [:], .unexpectedStatus(302)),

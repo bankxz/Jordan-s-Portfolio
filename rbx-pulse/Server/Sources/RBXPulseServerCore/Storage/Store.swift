@@ -62,6 +62,8 @@ public protocol Store: Sendable {
     // MARK: Alerts
     func alertRules(userID: UUID) async throws -> [AlertRule]
     func enabledAlertRules() async throws -> [OwnedAlertRule]
+    /// Owner of a rule ID regardless of enabled state; `nil` if no such rule exists.
+    func alertRuleOwner(ruleID: UUID) async throws -> UUID?
     func saveAlertRule(userID: UUID, rule: AlertRule) async throws
     /// Returns `false` if no such rule belongs to the user.
     func deleteAlertRule(userID: UUID, ruleID: UUID) async throws -> Bool

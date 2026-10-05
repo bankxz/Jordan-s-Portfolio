@@ -46,6 +46,7 @@ actor FakeRobloxOAuth: RobloxOAuth {
     func setRefreshBehaviour(_ behaviour: Result<Void, RobloxAPIError>) { refreshBehaviour = behaviour }
     func setRefreshGate(_ gate: Gate?) { refreshGate = gate }
     func setUniverses(_ ids: [Int64]) { universes = ids }
+    func setRobloxUserID(_ id: String) { robloxUserID = id }
 
     nonisolated func authorizeURL(state: String, codeChallenge: String) -> URL {
         var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!

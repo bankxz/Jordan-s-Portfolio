@@ -180,6 +180,8 @@ public actor InMemoryStore: Store {
         rules.values.filter(\.rule.isEnabled).sorted { $0.rule.id.uuidString < $1.rule.id.uuidString }
     }
 
+    public func alertRuleOwner(ruleID: UUID) -> UUID? { rules[ruleID]?.userID }
+
     public func saveAlertRule(userID: UUID, rule: AlertRule) {
         rules[rule.id] = OwnedAlertRule(userID: userID, rule: rule)
     }

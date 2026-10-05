@@ -176,7 +176,7 @@ final class AppModel {
         if error is AuthError { return reconnect }
         if let apiError = error as? APIError {
             switch apiError {
-            case .unauthorized:
+            case .unauthorized, .reconnectRequired:
                 return reconnect
             case .rateLimited:
                 return "Roblox is busy right now. We'll try again shortly."

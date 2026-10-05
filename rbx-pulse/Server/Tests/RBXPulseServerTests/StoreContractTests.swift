@@ -209,6 +209,8 @@ struct StoreContractTests {
         }
         #expect(try await store.recentAlertEvents(userID: owner.id, limit: 2).map(\.value) == [4, 3])
 
+        #expect(try await store.alertRuleOwner(ruleID: rule.id) == owner.id)
+        #expect(try await store.alertRuleOwner(ruleID: UUID()) == nil)
         #expect(try await store.deleteAlertRule(userID: stranger.id, ruleID: rule.id) == false)
         #expect(try await store.deleteAlertRule(userID: owner.id, ruleID: rule.id))
         #expect(try await store.alertRules(userID: owner.id).isEmpty)

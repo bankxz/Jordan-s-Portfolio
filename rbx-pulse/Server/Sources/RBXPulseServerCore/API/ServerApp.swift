@@ -36,6 +36,8 @@ public enum RBXPulseServerApp {
 
         let authenticated = router.group().add(middleware: AuthMiddleware(auth: auth))
         authRoutes.addAuthenticatedRoutes(to: authenticated)
+        DataRoutes(builder: DashboardBuilder(store: deps.store, now: deps.now), store: deps.store, now: deps.now)
+            .add(to: authenticated)
         return router
     }
 

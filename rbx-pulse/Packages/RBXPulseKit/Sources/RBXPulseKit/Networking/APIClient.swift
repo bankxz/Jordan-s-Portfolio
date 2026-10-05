@@ -8,6 +8,8 @@ public enum APIError: Error, Hashable, Sendable {
     case unauthorized
     case forbidden
     case notFound
+    /// 409: the server lost access to the creator's Roblox account (revoked or expired); reconnect.
+    case reconnectRequired
     /// 429. `retryAfter` comes from the `Retry-After` header when present.
     case rateLimited(retryAfter: TimeInterval?)
     case server(status: Int)
@@ -131,6 +133,8 @@ public struct APIClient: Sendable {
             throw APIError.forbidden
         case 404:
             throw APIError.notFound
+        case 409:
+            throw APIError.reconnectRequired
         case 429:
             let header = response.value(forHTTPHeaderField: "Retry-After")
             let seconds = header.flatMap { TimeInterval($0.trimmingCharacters(in: .whitespaces)) }
