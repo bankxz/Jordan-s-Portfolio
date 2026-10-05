@@ -109,10 +109,14 @@ Deployment target: **iOS 17.0, Swift 6 language mode** (decision 0002). Anything
 | `SharedUI/` | Views compiled into both the app and widgets. |
 | `Tests/AppTests`, `Tests/UITests` | Swift Testing for app models; XCUITest journeys + screenshots. |
 | `project.yml` | XcodeGen spec. The `.xcodeproj` is generated, not committed. |
+| `Server/` | Backend: Swift 6.2 + Hummingbird + Postgres (decision 0005). Owns Roblox OAuth/tokens, polling, alerts, APNs. See `Server/README.md`. |
 
 - Package tests anywhere: `cd Packages/RBXPulseKit && swift test` (add `--sanitize=thread` for concurrency work).
   On Linux without a toolchain: `docker run --rm -v "$PWD":/pkg -w /pkg swift:6.1-noble swift test`.
 - App on a Mac: `brew install xcodegen && xcodegen generate && open RBXPulse.xcodeproj`.
+- Server: `cd Server && swift test` (Swift 6.2). With Postgres: set `TEST_DATABASE_URL` and `REQUIRE_POSTGRES=1`.
+  Without a toolchain: `Server/scripts/docker-test.sh`. Any change to `RBXPulseKit` API types must keep
+  `AppCompatibilityTests` green, because that's the app↔server contract check.
 - Launch arguments for QA: `-demoMode normal|empty|failing`, `-colorScheme dark|light`,
   `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXL`.
 - CI (`.github/workflows/rbx-pulse.yml`) runs package tests on Linux (+TSan) and macOS, builds the app,

@@ -3,8 +3,8 @@
 Native iOS app for Roblox creators: live CCU, revenue and retention, ads and campaigns,
 goals, alerts, Home/Lock Screen widgets and (next) Live Activities.
 
-**Status:** core logic package complete and tested. The app shell runs on sample data (demo mode)
-until the backend exists.
+**Status:** the app runs on sample data (demo mode) or against the backend in `Server/` (Roblox OAuth,
+stats and revenue polling, server-side alerts + APNs). Next: the in-app "Connect Roblox" flow.
 
 ```
 rbx-pulse/
@@ -16,11 +16,12 @@ rbx-pulse/
 ├── Packages/RBXPulseKit/         # Shared logic + 95 Swift Testing tests (runs on Linux too)
 ├── App/                          # SwiftUI app: Home, Games, Goals, Ads, Alerts, game chart
 ├── Widgets/                      # Game Pulse (configurable) + Goals widgets
+├── Server/                       # Backend: Hummingbird + Postgres (see Server/README.md)
 ├── SharedUI/                     # Views shared by app and widgets
 ├── Tests/AppTests, Tests/UITests # App model tests; XCUITest journeys + screenshots
 ├── docs/
 │   ├── DEV_LOG.md                # Skills report + verification per slice
-│   ├── decisions/                # 0001 skills · 0002 iOS 17 · 0003 architecture & auth
+│   ├── decisions/                # 0001 skills · 0002 iOS 17 · 0003 architecture & auth · 0004 verification · 0005 backend
 │   ├── api/backend-contract.md   # Backend endpoints the app expects
 │   ├── skills/                   # Skill policy + vetting record
 │   └── qa/                       # Visual QA + release checklist

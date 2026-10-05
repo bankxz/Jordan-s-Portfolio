@@ -103,3 +103,21 @@ Reason: the backend owns Roblox OAuth and rotating tokens — the riskiest code 
 Primary sources read first (Roblox/creator-docs): oauth2-reference, oauth2-develop, oauth2-registration,
 analytics guide + metrics, Open Cloud openapi.json scopes. See decision 0005.
 Deployment-target notes: server only (Linux, Swift 6.1). No iOS APIs.
+Verified (local, Swift 6.2 container + Postgres 16 container):
+- 89 server tests: config/crypto (incl. the RFC 7636 PKCE vector), the store contract suite against **both** stores,
+  Roblox client request/response shapes from the documented payloads, the OAuth flow, session rotation, refresh
+  reuse → family revocation, single-flight Roblox refresh (50 callers → 1 refresh), cross-instance CAS, routes
+  (errors, rate limits, ownership isolation, rule hijack attempt), workers (batching, failure isolation, idempotent
+  minute samples, alert edge + push + dead-token cleanup, revenue scope gating), APNs ES256 JWT verified with the
+  public key, graceful periodic services.
+- `AppCompatibilityTests`: the app's own RBXPulseKit stack (APIClient, AuthSessionCoordinator,
+  BackendTokenRefresher, URLSessionTransport) against the live server over HTTP: sign-in, dashboard, flags, series,
+  transparent refresh after expiry, rules, reconnect (409), logout.
+- ThreadSanitizer clean. Mutation checks: removing reuse detection, Roblox single-flight, or the Postgres CAS
+  guard each fails the suite (CAS: 20 of 20 concurrent rotations "won" without it).
+- Release binary smoke test against a fresh database: migrations applied (14 tables), authorize URL correct
+  (S256 PKCE, scopes), forged state rejected, protected routes 401, 0 secret occurrences in logs.
+Not verified: real Roblox endpoints (no egress to roblox.com from this environment; requests follow the
+primary-source docs), real APNs delivery (needs an Apple key), the Docker image build (runs in CI).
+Kit change: `APIError.reconnectRequired` (409) → app shows "Reconnect" (AppModel + tests updated).
+Decisions: [0005](decisions/0005-backend.md)

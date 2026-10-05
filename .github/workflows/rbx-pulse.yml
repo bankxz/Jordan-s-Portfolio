@@ -33,6 +33,52 @@ jobs:
       - name: Test with ThreadSanitizer
         run: swift test --sanitize=thread
 
+  server:
+    name: Server (Swift 6.2 + Postgres 16)
+    runs-on: ubuntu-latest
+    container: swift:6.2-noble
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: pulse
+          POSTGRES_DB: rbxpulse
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:pulse@postgres:5432/rbxpulse?sslmode=disable
+      REQUIRE_POSTGRES: "1"
+    defaults:
+      run:
+        working-directory: rbx-pulse/Server
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test (in-memory + Postgres contract, routes, workers, app compatibility)
+        run: swift test
+      - name: Test with ThreadSanitizer
+        run: swift test --sanitize=thread
+
+  server-image:
+    name: Server Docker image (build + smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f rbx-pulse/Server/Dockerfile -t rbxpulse-server rbx-pulse
+      - name: Smoke test
+        run: |
+          docker run -d --name smoke -p 8080:8080 \
+            -e ROBLOX_CLIENT_ID=ci -e ROBLOX_CLIENT_SECRET=ci-secret \
+            -e ROBLOX_REDIRECT_URI=https://example.com/oauth/roblox/callback \
+            -e TOKEN_ENCRYPTION_KEY="$(head -c 32 /dev/urandom | base64)" \
+            rbxpulse-server
+          for i in $(seq 1 30); do curl -fs localhost:8080/health && break; sleep 1; done
+          test "$(curl -fs localhost:8080/health)" = "ok"
+          curl -fs -X POST localhost:8080/v1/auth/roblox/start | grep -q "apis.roblox.com"
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8080/v1/dashboard)" = "401"
+          if docker logs smoke 2>&1 | grep -q "ci-secret"; then echo "client secret leaked into logs"; exit 1; fi
+          docker stop smoke
+
   ios:
     name: iOS app (build, unit + UI tests, screenshots)
     runs-on: macos-15
