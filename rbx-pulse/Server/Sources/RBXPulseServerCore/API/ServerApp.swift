@@ -46,15 +46,39 @@ public enum RBXPulseServerApp {
         logger.logLevel = .info
         logger.info("Starting", metadata: ["config": "\(config)"])
 
+        let http = LiveHTTPExecutor()
+        let store: any Store = try await makeStore(config: config, logger: logger)
         let deps = ServerDependencies(
-            store: InMemoryStore(),
-            oauth: RobloxOAuthClient(config: config.roblox, http: LiveHTTPExecutor()),
+            store: store,
+            oauth: RobloxOAuthClient(config: config.roblox, http: http),
             box: try SecretBox(key: config.tokenEncryptionKey),
             appCallbackURL: config.appCallbackURL
         )
-        let app = Application(router: buildRouter(deps),
+
+        let push: any PushSender = try config.apns.map { try APNsSender(config: $0, http: http) } ?? DisabledPushSender()
+        let alerts = AlertEvaluator(store: store, push: push, now: deps.now)
+        let stats = StatsPoller(store: store, games: RobloxGamesClient(baseURL: config.roblox.gamesBaseURL, http: http),
+                                alerts: alerts, now: deps.now)
+        let tokens = RobloxTokenManager(store: store, oauth: deps.oauth, box: deps.box, now: deps.now)
+        let revenue = RevenuePoller(store: store, tokens: tokens,
+                                    analytics: RobloxAnalyticsClient(baseURL: config.roblox.apisBaseURL, http: http),
+                                    now: deps.now)
+
+        var app = Application(router: buildRouter(deps),
                               configuration: .init(address: .hostname(config.host, port: config.port)),
                               logger: logger)
+        app.addServices(
+            PeriodicService(name: "stats", interval: config.statsPollInterval, logger: logger) { try await stats.tick(logger: $0) },
+            PeriodicService(name: "revenue", interval: config.revenuePollInterval, logger: logger) { try await revenue.tick(logger: $0) }
+        )
         try await app.runService()
+    }
+
+    static func makeStore(config: ServerConfig, logger: Logger) async throws -> any Store {
+        guard config.databaseURL != nil else {
+            logger.warning("DATABASE_URL not set: using the in-memory store (data is lost on restart)")
+            return InMemoryStore()
+        }
+        return InMemoryStore()  // Replaced by PostgresStore in the next slice.
     }
 }
