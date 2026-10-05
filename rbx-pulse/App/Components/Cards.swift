@@ -219,7 +219,7 @@ struct GoalStatusBadge: View {
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(statusColor.accentColor.opacity(0.15), in: .capsule)
+            .background(status.tint.opacity(0.15), in: .capsule)
             .foregroundStyle(status.tint)
     }
 }
