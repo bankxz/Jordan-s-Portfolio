@@ -95,9 +95,12 @@ final class NotificationController {
         }
     }
 
-    private static func authorizationStatus() async -> UNAuthorizationStatus {
+    /// `nonisolated` on purpose: the completion handler runs on a background queue. Inside this `@MainActor`
+    /// class it would otherwise be main-actor isolated, and Swift 6's runtime check crashes the app when it's
+    /// called off the main thread (the launch crash in CI run 37436023399).
+    nonisolated private static func authorizationStatus() async -> UNAuthorizationStatus {
         await withCheckedContinuation { continuation in
-            UNUserNotificationCenter.current().getNotificationSettings { settings in
+            UNUserNotificationCenter.current().getNotificationSettings { @Sendable settings in
                 continuation.resume(returning: settings.authorizationStatus)
             }
         }
