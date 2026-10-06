@@ -5,7 +5,7 @@ import Testing
 
 @MainActor
 struct InsightsModelTests {
-    static let now = Date(timeIntervalSince1970: 1_790_000_000)
+    nonisolated static let now = Date(timeIntervalSince1970: 1_790_000_000)
 
     func makeModel(_ mode: DemoDashboardService.Mode = .normal, consented: Bool = false) -> InsightsModel {
         InsightsModel(service: DemoInsightService(mode: mode, consented: consented, now: { Self.now }))
