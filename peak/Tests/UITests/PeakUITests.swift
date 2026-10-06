@@ -251,6 +251,17 @@ final class PeakUITests: XCTestCase {
     }
 
     @MainActor
+    func testAdsShowSuggestions() {
+        let app = launch()
+        app.tabBars.buttons["Ads"].tap()
+        XCTAssertTrue(element(app, "campaignInsight.spring-launch").waitForExistence(timeout: 15))
+        screenshot(app, "ads-suggestions")
+        element(app, "importCampaignsButton").tap()
+        XCTAssertTrue(app.navigationBars["Import ad results"].waitForExistence(timeout: 10))
+        screenshot(app, "ads-import")
+    }
+
+    @MainActor
     func testGoalPlanner() {
         let app = launch()
         app.tabBars.buttons["Goals"].tap()

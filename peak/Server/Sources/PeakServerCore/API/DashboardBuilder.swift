@@ -75,9 +75,9 @@ public struct DashboardBuilder: Sendable {
         return Dashboard(
             games: games,
             goals: try await store.goals(userID: userID),
-            // Roblox's Ads Management API has campaigns but no performance metrics; those need an Ads Manager
-            // CSV import (docs/ai/AI_FEATURES.md). Until then the app shows its empty state.
-            campaigns: [],
+            // Roblox's Ads Management API has campaigns but no performance metrics, so these come from the
+            // creator's Ads Manager CSV imports (docs/ai/AI_FEATURES.md), limited to games they still own.
+            campaigns: try await store.importedCampaigns(userID: userID).filter { universes.contains($0.gameID) },
             recentAlerts: try await store.recentAlertEvents(userID: userID, limit: 20),
             ccuSparklines: sparklines,
             generatedAt: current

@@ -85,8 +85,14 @@ public enum JSONBody {
         return Response(status: status, headers: headers, body: .init(byteBuffer: ByteBuffer(bytes: data)))
     }
 
-    public static func decode<T: Decodable>(_ type: T.Type, from request: Request, context: AppRequestContext) async throws -> T {
-        let buffer = try await request.body.collect(upTo: context.maxUploadSize)
+    public static func decode<T: Decodable>(_ type: T.Type, from request: Request, context: AppRequestContext,
+                                            limit: Int? = nil) async throws -> T {
+        let buffer: ByteBuffer
+        do {
+            buffer = try await request.body.collect(upTo: limit ?? context.maxUploadSize)
+        } catch {
+            throw APIFailure.badRequest("body_too_large")
+        }
         do {
             return try JSONCoding.makeDecoder().decode(T.self, from: Data(buffer: buffer))
         } catch {

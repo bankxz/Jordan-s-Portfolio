@@ -77,6 +77,8 @@ public protocol DashboardService: Sendable {
     func series(gameID: Int64, metric: Metric, range: TimeRange) async throws -> MetricSeries
     func setFavourite(gameID: Int64, isFavourite: Bool) async throws
     func setWorkingOn(gameID: Int64, isWorkingOn: Bool) async throws
+    /// Imports an Ads Manager CSV for the game and returns its imported campaigns.
+    func importCampaigns(csv: String, gameID: Int64) async throws -> [Campaign]
 }
 
 /// Backend endpoints. Contract documented in docs/api/backend-contract.md.
@@ -111,6 +113,16 @@ public enum BackendAPI {
         public init(apnsToken: String, sandbox: Bool) {
             self.apnsToken = apnsToken
             self.sandbox = sandbox
+        }
+    }
+
+    /// Ads Manager CSV for one game. Parsed by `CampaignImport` on both the app (preview) and the server.
+    public struct CampaignImportBody: Codable, Sendable, Hashable {
+        public var gameID: Int64
+        public var csv: String
+        public init(gameID: Int64, csv: String) {
+            self.gameID = gameID
+            self.csv = csv
         }
     }
 
@@ -160,6 +172,11 @@ public enum BackendAPI {
         Endpoint(method: .post, path: "v1/devices", body: encode(body))
     }
 
+    /// Imports (or re-imports) campaigns; returns every imported campaign for the game.
+    public static func importCampaigns(_ body: CampaignImportBody) -> Endpoint<[Campaign]> {
+        Endpoint(method: .post, path: "v1/campaigns/import", body: encode(body))
+    }
+
     public static func alertRules() -> Endpoint<[AlertRule]> {
         Endpoint(path: "v1/alerts/rules")
     }
@@ -198,6 +215,10 @@ public struct RemoteDashboardService: DashboardService {
 
     public func setWorkingOn(gameID: Int64, isWorkingOn: Bool) async throws {
         _ = try await client.send(BackendAPI.setWorkingOn(gameID: gameID, value: isWorkingOn))
+    }
+
+    public func importCampaigns(csv: String, gameID: Int64) async throws -> [Campaign] {
+        try await client.send(BackendAPI.importCampaigns(BackendAPI.CampaignImportBody(gameID: gameID, csv: csv)))
     }
 }
 

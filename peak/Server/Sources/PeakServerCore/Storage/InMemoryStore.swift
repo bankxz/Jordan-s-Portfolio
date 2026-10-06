@@ -22,6 +22,7 @@ public actor InMemoryStore: Store {
     private var usage: [AIUsageRecord] = []
     private var insights: [InsightKey: Double] = [:]
     private var digestPushes: [String: Date] = [:]
+    private var campaigns: [UUID: [String: Campaign]] = [:]
     private var funnels: [FunnelKey: FunnelSnapshot] = [:]
 
     private struct InsightKey: Hashable { var universeID: Int64; var metric: InsightMetric; var time: Date }
@@ -274,6 +275,16 @@ public actor InMemoryStore: Store {
             .sorted { $0.funnelName < $1.funnelName }
     }
 
+    // MARK: Imported campaigns
+
+    public func saveImportedCampaigns(userID: UUID, campaigns new: [Campaign], now: Date) {
+        for campaign in new { campaigns[userID, default: [:]][campaign.id] = campaign }
+    }
+
+    public func importedCampaigns(userID: UUID) -> [Campaign] {
+        (campaigns[userID] ?? [:]).values.sorted { $0.name < $1.name }
+    }
+
     // MARK: Digest pushes
 
     public func claimDigestPush(userID: UUID, key: String, at: Date, cooldown: TimeInterval) -> Bool {
@@ -313,6 +324,7 @@ public actor InMemoryStore: Store {
         events[id] = nil
         deviceRecords = deviceRecords.filter { $0.value.userID != id }
         consents[id] = nil
+        campaigns[id] = nil
         digestPushes = digestPushes.filter { $0.key.hasPrefix("\(id)|") == false }
         // Spend stays counted, without the link to the deleted user.
         usage = usage.map { record in

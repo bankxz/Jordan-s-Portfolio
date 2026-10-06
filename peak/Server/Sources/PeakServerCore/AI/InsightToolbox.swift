@@ -41,6 +41,9 @@ public struct InsightToolbox: AskToolbox {
                   description: "Funnels the game logs (for example Join → Tutorial → First Egg) for the last 7 days: players per step, the biggest drop and whether it got worse.",
                   inputSchema: ["type": "object", "additionalProperties": false, "required": ["game_id"],
                                 "properties": ["game_id": Self.gameIDSchema]]),
+            .init(name: "get_campaigns",
+                  description: "Imported ad campaigns with spend, CTR, cost per play and a suggestion (increase, maintain, reduce, pause) from comparing them. Suggestions only; nothing changes automatically.",
+                  inputSchema: ["type": "object", "additionalProperties": false, "properties": [:], "required": []]),
             .init(name: "get_goals",
                   description: "The creator's goals with progress, time used and status.",
                   inputSchema: ["type": "object", "additionalProperties": false, "properties": [:], "required": []]),
@@ -58,6 +61,7 @@ public struct InsightToolbox: AskToolbox {
             case "get_alerts": try await alerts()
             case "get_update_impact": try await updateImpact(input)
             case "get_funnels": try await funnels(input)
+            case "get_campaigns": try await campaigns()
             case "get_goals": try await goals()
             case "get_portfolio_health": try await portfolio()
             default: throw ToolError("Unknown tool \(name).")
@@ -163,6 +167,25 @@ public struct InsightToolbox: AskToolbox {
             ["name": .string(funnel.name), "summary": .string(funnel.report.summary),
              "steps": .array(funnel.steps.map { ["step": .string($0.name), "players": .string(MetricFormatter.compact($0.players))] }),
              "warnings": .array(funnel.report.warnings.map { .string($0) })]
+        })
+    }
+
+    private func campaigns() async throws -> JSONValue {
+        let board = try await dashboard.dashboard(userID: userID)
+        guard board.campaigns.isEmpty == false else { return ["campaigns": "none imported (import an Ads Manager CSV in the Ads tab)"] }
+        let insights = Dictionary(uniqueKeysWithValues: CampaignAnalyst.analyze(board.campaigns).map { ($0.campaignID, $0) })
+        return .array(board.campaigns.map { campaign in
+            var entry: [String: JSONValue] = [
+                "name": .string(campaign.name), "status": .string(campaign.status.rawValue),
+                "spent": .string(MetricFormatter.robux(campaign.spentRobux)),
+                "impressions": .string(MetricFormatter.compact(campaign.impressions)),
+                "plays": .string(MetricFormatter.compact(campaign.plays)),
+            ]
+            if let insight = insights[campaign.id] {
+                entry["suggestion"] = .string(insight.suggestion.rawValue)
+                entry["analysis"] = .string(insight.summary)
+            }
+            return .object(entry)
         })
     }
 

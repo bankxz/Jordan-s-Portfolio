@@ -94,6 +94,11 @@ public protocol Store: Sendable {
     /// The newest snapshot of each funnel for the universe.
     func latestFunnelSnapshots(universeID: Int64) async throws -> [FunnelSnapshot]
 
+    // MARK: Imported ad campaigns (Ads Manager CSV)
+    /// Inserts or replaces by campaign ID for this user.
+    func saveImportedCampaigns(userID: UUID, campaigns: [Campaign], now: Date) async throws
+    func importedCampaigns(userID: UUID) async throws -> [Campaign]
+
     // MARK: Digest pushes
     /// Atomically records that `key` was pushed to the user at `at`, unless it was already pushed within
     /// `cooldown`. Returns `true` when the caller should push.

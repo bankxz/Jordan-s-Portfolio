@@ -195,3 +195,18 @@ Slice 6b: digest push notifications.
 - One push per incident every 5 minutes, bad news only, at most once per game, metric and direction every 6 h,
   claimed atomically (Postgres migration v4).
 - Tests: 118 server tests, in memory and on Postgres, including 10 concurrent claims giving exactly 1 winner.
+
+## 2026-10-06 — Slice 7: Ad results import and campaign analyst
+
+Skills: roblox-cloud (Ads Management API has no performance metrics, so performance comes from a CSV import),
+guide-swift-testing, swiftui/hig (import sheet with an on-device preview before upload)
+- CampaignImport: tolerant CSV with RFC 4180 quoting, header aliases, sums rows per campaign, skips totals,
+  stable IDs so re-imports replace; missing required columns are reported, never guessed.
+- CampaignAnalyst compares campaigns with each other (no public benchmark): increase / maintain / reduce /
+  pause / needs data.
+- Server: `POST /v1/campaigns/import` with a 2 MB body limit, Postgres migration v5, dashboard campaigns,
+  and an Ask tool `get_campaigns`.
+- App: Import sheet (parse preview on device), suggestion under each campaign.
+- Verified locally: 157 PeakKit tests and 121 server tests (in memory and on Postgres).
+- Not verified: the real Ads Manager export's headers. The alias list covers common names; the preview shows
+  what was found before anything uploads.

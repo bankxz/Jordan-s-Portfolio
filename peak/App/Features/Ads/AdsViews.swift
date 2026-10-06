@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AdsView: View {
     @Environment(AppModel.self) private var model
+    @State private var isImporting = false
 
     var body: some View {
         ScrollView {
@@ -10,17 +11,27 @@ struct AdsView: View {
                 if let dashboard = model.dashboard {
                     if dashboard.campaigns.isEmpty {
                         EmptyStateView(title: "No campaigns",
-                                       message: "Sponsored experiences and ads you run on Roblox show up here.",
+                                       message: "Download your results from Roblox Ads Manager as CSV, then tap Import. Roblox doesn't share ad results with apps directly.",
                                        systemImage: "megaphone")
                             .padding(.top, 40)
                     } else {
+                        let insights = Dictionary(uniqueKeysWithValues: CampaignAnalyst.analyze(dashboard.campaigns).map { ($0.campaignID, $0) })
                         ForEach(dashboard.campaigns) { campaign in
-                            NavigationLink(value: Destination.campaign(id: campaign.id)) {
-                                CampaignCard(campaign: campaign, gameName: model.game(id: campaign.gameID)?.name)
+                            VStack(alignment: .leading, spacing: 6) {
+                                NavigationLink(value: Destination.campaign(id: campaign.id)) {
+                                    CampaignCard(campaign: campaign, gameName: model.game(id: campaign.gameID)?.name)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("campaignCard.\(campaign.id)")
+                                if let insight = insights[campaign.id] {
+                                    CampaignInsightRow(insight: insight)
+                                }
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("campaignCard.\(campaign.id)")
                         }
+                        Text("Suggestions compare your campaigns with each other. Peak never changes budgets; you decide in Ads Manager.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } else if case .failed(let message) = model.phase {
                     ErrorCard(message: message) { await model.refresh() }
@@ -33,6 +44,51 @@ struct AdsView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Ads")
         .refreshable { await model.refresh() }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isImporting = true
+                } label: {
+                    Label("Import results", systemImage: "square.and.arrow.down")
+                }
+                .disabled(model.dashboard?.games.isEmpty ?? true)
+                .accessibilityIdentifier("importCampaignsButton")
+            }
+        }
+        .sheet(isPresented: $isImporting) {
+            CampaignImportView()
+        }
+    }
+}
+
+/// The analyst's suggestion under a campaign card. Colour plus a word, never colour alone.
+struct CampaignInsightRow: View {
+    let insight: CampaignInsight
+
+    var body: some View {
+        let (title, symbol, colour) = style
+        VStack(alignment: .leading, spacing: 4) {
+            Label(title, systemImage: symbol)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(colour)
+            Text(insight.summary)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("campaignInsight.\(insight.campaignID)")
+    }
+
+    private var style: (LocalizedStringKey, String, Color) {
+        switch insight.suggestion {
+        case .increase: ("Suggestion: test a bigger budget", "arrow.up.circle", .green)
+        case .maintain: ("Suggestion: keep as is", "equal.circle", .secondary)
+        case .reduce: ("Suggestion: reduce or refresh the creative", "arrow.down.circle", .orange)
+        case .pause: ("Suggestion: consider pausing", "pause.circle", .red)
+        case .needsData: ("Not enough data yet", "hourglass", .secondary)
+        }
     }
 }
 

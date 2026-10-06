@@ -201,6 +201,16 @@ public struct PostgresStore: Store {
                 PRIMARY KEY (user_id, key))
             """,
         ]),
+        (5, [
+            """
+            CREATE TABLE imported_campaigns (
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                campaign_id TEXT NOT NULL,
+                body TEXT NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
+                PRIMARY KEY (user_id, campaign_id))
+            """,
+        ]),
     ]
 
     /// Applies pending migrations under an advisory lock, so several instances starting at once are safe.
@@ -698,6 +708,25 @@ public struct PostgresStore: Store {
         var result: [FunnelSnapshot] = []
         for try await body in rows.decode(String.self) { result.append(try Self.decode(FunnelSnapshot.self, body)) }
         return result
+    }
+
+    // MARK: Imported campaigns
+
+    public func saveImportedCampaigns(userID: UUID, campaigns: [Campaign], now: Date) async throws {
+        for campaign in campaigns {
+            try await client.query("""
+                INSERT INTO imported_campaigns (user_id, campaign_id, body, updated_at)
+                VALUES (\(userID), \(campaign.id), \(try Self.encode(campaign)), \(now))
+                ON CONFLICT (user_id, campaign_id) DO UPDATE SET body = EXCLUDED.body, updated_at = EXCLUDED.updated_at
+                """, logger: logger)
+        }
+    }
+
+    public func importedCampaigns(userID: UUID) async throws -> [Campaign] {
+        let rows = try await client.query("SELECT body FROM imported_campaigns WHERE user_id = \(userID)", logger: logger)
+        var result: [Campaign] = []
+        for try await body in rows.decode(String.self) { result.append(try Self.decode(Campaign.self, body)) }
+        return result.sorted { $0.name < $1.name }
     }
 
     // MARK: Digest pushes

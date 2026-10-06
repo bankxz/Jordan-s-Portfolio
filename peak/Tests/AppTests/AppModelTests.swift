@@ -32,6 +32,11 @@ actor ScriptedService: DashboardService {
         if failWrites { throw URLError(.timedOut) }
         try await inner.setWorkingOn(gameID: gameID, isWorkingOn: isWorkingOn)
     }
+
+    func importCampaigns(csv: String, gameID: Int64) async throws -> [Campaign] {
+        if failWrites { throw URLError(.timedOut) }
+        return try await inner.importCampaigns(csv: csv, gameID: gameID)
+    }
 }
 
 @MainActor
@@ -177,5 +182,18 @@ struct AppConfigurationTests {
         let config = AppConfiguration.current(arguments: ["app", "-demoMode"])
         #expect(config.dataSource == .demo(.normal))
         #expect(config.forcedColorScheme == nil)
+    }
+}
+
+@MainActor
+struct CampaignImportModelTests {
+    @Test func importRefreshesTheDashboard() async throws {
+        let model = AppModel(service: ScriptedService(), snapshotStore: nil, now: { Date(timeIntervalSince1970: 1_790_000_000) })
+        await model.refresh()
+        let before = model.dashboard?.campaigns.count ?? 0
+        let imported = try await model.importCampaigns(csv: "Campaign,Impressions,Spend\nAutumn,5000,100", gameID: 735_030_788)
+        #expect(imported.map(\.name) == ["Autumn"])
+        #expect(model.dashboard?.campaigns.count == before + 1)
+        #expect(CampaignImportView.describe(.missingColumns([.impressions])) == "Couldn't find these columns: impressions. Check the export includes them.")
     }
 }

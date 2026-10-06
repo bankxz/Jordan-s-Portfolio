@@ -148,6 +148,7 @@ public actor DemoDashboardService: DashboardService {
     private let now: @Sendable () -> Date
     private var favourites: [Int64: Bool] = [:]
     private var workingOn: [Int64: Bool] = [:]
+    private var importedCampaigns: [String: Campaign] = [:]
 
     public struct DemoFailure: Error, Hashable {}
 
@@ -170,6 +171,7 @@ public actor DemoDashboardService: DashboardService {
                 if let value = favourites[id] { dashboard.games[index].isFavourite = value }
                 if let value = workingOn[id] { dashboard.games[index].isWorkingOn = value }
             }
+            dashboard.campaigns += importedCampaigns.values.sorted { $0.name < $1.name }
             return dashboard
         }
     }
@@ -195,5 +197,13 @@ public actor DemoDashboardService: DashboardService {
     public func setWorkingOn(gameID: Int64, isWorkingOn: Bool) async throws {
         guard mode != .failing else { throw DemoFailure() }
         workingOn[gameID] = isWorkingOn
+    }
+
+    public func importCampaigns(csv: String, gameID: Int64) async throws -> [Campaign] {
+        guard mode != .failing else { throw DemoFailure() }
+        for campaign in try CampaignImport.parse(csv: csv, gameID: gameID).campaigns {
+            importedCampaigns[campaign.id] = campaign
+        }
+        return importedCampaigns.values.filter { $0.gameID == gameID }.sorted { $0.name < $1.name }
     }
 }

@@ -272,7 +272,7 @@ public struct AIService: Sendable {
         let game = input["game_id"]?.doubleValue.map { " for game \(Int64($0))" } ?? ""
         let metric = input["metric"]?.stringValue.map { " (\($0)" + (input["range"]?.stringValue.map { ", \($0))" } ?? ")") } ?? ""
         let names = ["list_games": "Your games", "get_metric_history": "Metric history", "get_alerts": "Unusual changes",
-                     "get_update_impact": "Update report", "get_funnels": "Funnels", "get_goals": "Goals", "get_portfolio_health": "Portfolio health"]
+                     "get_update_impact": "Update report", "get_funnels": "Funnels", "get_campaigns": "Ad campaigns", "get_goals": "Goals", "get_portfolio_health": "Portfolio health"]
         return (names[tool] ?? tool) + game + metric
     }
 }

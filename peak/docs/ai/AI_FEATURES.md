@@ -84,8 +84,8 @@ Data sources used below:
 
 | # | Feature | Data | Status |
 |---|---|---|---|
-| 16 | Ad campaign analyst | campaigns ✅ + performance 📥 (Ads Manager CSV) | **V1** (import) |
-| 17 | Budget recommendation | same; suggestion only, never writes | later |
+| 16 | Ad campaign analyst | campaigns ✅ + performance 📥 (Ads Manager CSV) | **V1, built** (CSV import) |
+| 17 | Budget recommendation | same; suggestion only, never writes | **built** (increase / maintain / reduce / pause, relative to your other campaigns) |
 | 18 | Creative fatigue detector | thumbnails ✅ · ad creatives 📥 | later |
 | 19 | Thumbnail and icon reviewer | thumbnail images ✅ + Claude vision | later |
 | 20 | Creative variant generator | text concepts and prompts only | later |
@@ -130,7 +130,6 @@ Data sources used below:
 Status 2026-10-06:
 - **Built:** 1–6, 8, 9, 10, plus retention and crash-rate alerts, using daily Analytics every 6 hours.
 - **Still open:**
-  - 7: Ads Manager CSV import.
   - 8 in the app is built, but its server data needs the game to log funnels.
   - Error logs: server logs ingestion (`universe:read`).
   - A push notification for the morning briefing (needs each user's time zone). Digest pushes are built.

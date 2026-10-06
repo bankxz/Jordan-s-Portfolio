@@ -55,6 +55,26 @@ struct DataRoutes {
             return JSONBody.noContent()
         }
 
+        group.post("v1/campaigns/import") { request, context in
+            let userID = try context.requireAuth().userID
+            // Ads Manager exports can be large; allow up to the parser's limit plus JSON overhead.
+            let body = try await JSONBody.decode(BackendAPI.CampaignImportBody.self, from: request, context: context,
+                                                 limit: CampaignImport.maxBytes * 2)
+            try await builder.requireOwnership(userID: userID, universeID: body.gameID)
+            let result: CampaignImport.Result
+            do {
+                result = try CampaignImport.parse(csv: body.csv, gameID: body.gameID)
+            } catch CampaignImport.Failure.empty {
+                throw APIFailure.badRequest("csv_empty")
+            } catch CampaignImport.Failure.tooLarge {
+                throw APIFailure.badRequest("csv_too_large")
+            } catch {
+                throw APIFailure.badRequest("csv_missing_columns")
+            }
+            try await store.saveImportedCampaigns(userID: userID, campaigns: result.campaigns, now: now())
+            return try JSONBody.response(try await store.importedCampaigns(userID: userID).filter { $0.gameID == body.gameID })
+        }
+
         group.get("v1/alerts/rules") { _, context in
             try JSONBody.response(try await store.alertRules(userID: try context.requireAuth().userID))
         }

@@ -65,7 +65,17 @@ Dashboard data sources:
 | `stats.robux24h` | Analytics Query API `ItemMonetizationRevenue` (OneHour), summed over 24 h | polled every 15 min; `null` without `universe.analytics:read` |
 | `ccuSparklines` | stored samples, last 24 h → 24 points | |
 | `recentAlerts` | alert evaluator | last 20 |
-| `campaigns` | — | `[]` for now. Roblox's Ads Management API (`ad.campaign:read`, experimental) has campaign status and budgets but no impressions, clicks or spend; performance needs an Ads Manager CSV import (docs/ai/AI_FEATURES.md) |
+| `campaigns` | `POST /v1/campaigns/import` | Imported from the creator's Ads Manager CSV (Roblox's Ads Management API has campaigns and budgets but no impressions, clicks or spend). Only games the user still owns. |
+
+### Ad results import
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| POST | `/v1/campaigns/import` | `{ "gameID": 123, "csv": "…" }` (CSV ≤ 1 MB) | `[Campaign]` imported for that game. Re-imports replace by campaign name. `400 csv_empty`, `csv_too_large`, `csv_missing_columns` (needs campaign, impressions, spend), `body_too_large`; `404` for games the user doesn't own. |
+
+Columns are matched by common header names (`CampaignImport.aliases`); rows per campaign are summed; "Total" rows
+are skipped. `CampaignAnalyst` turns campaigns into suggestions (increase / maintain / reduce / pause) by comparing
+them with each other. Suggestions only: Peak holds no ads write scope.
 
 ## Alerts
 

@@ -111,6 +111,15 @@ final class AppModel {
         }
     }
 
+    // MARK: Ads
+
+    /// Uploads an Ads Manager CSV for a game, then reloads so the campaigns appear everywhere.
+    func importCampaigns(csv: String, gameID: Int64) async throws -> [Campaign] {
+        let imported = try await service.importCampaigns(csv: csv, gameID: gameID)
+        await refresh()
+        return imported
+    }
+
     // MARK: Lookups
 
     func game(id: Int64) -> Game? { dashboard?.games.first { $0.id == id } }
