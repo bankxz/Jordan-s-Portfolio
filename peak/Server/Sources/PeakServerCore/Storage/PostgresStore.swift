@@ -211,6 +211,7 @@ public struct PostgresStore: Store {
                 PRIMARY KEY (user_id, campaign_id))
             """,
         ]),
+        (6, ["ALTER TABLE devices ADD COLUMN time_zone TEXT"]),
     ]
 
     /// Applies pending migrations under an advisory lock, so several instances starting at once are safe.
@@ -615,17 +616,19 @@ public struct PostgresStore: Store {
 
     public func saveDevice(_ device: DeviceRecord) async throws {
         try await client.query("""
-            INSERT INTO devices (token, user_id, sandbox, updated_at) VALUES (\(device.token), \(device.userID), \(device.sandbox), \(device.updatedAt))
-            ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, sandbox = EXCLUDED.sandbox, updated_at = EXCLUDED.updated_at
+            INSERT INTO devices (token, user_id, sandbox, updated_at, time_zone)
+            VALUES (\(device.token), \(device.userID), \(device.sandbox), \(device.updatedAt), \(device.timeZone))
+            ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, sandbox = EXCLUDED.sandbox,
+                updated_at = EXCLUDED.updated_at, time_zone = EXCLUDED.time_zone
             """, logger: logger)
     }
 
     public func devices(userID: UUID) async throws -> [DeviceRecord] {
         let rows = try await client.query(
-            "SELECT token, user_id, sandbox, updated_at FROM devices WHERE user_id = \(userID) ORDER BY token", logger: logger)
+            "SELECT token, user_id, sandbox, updated_at, time_zone FROM devices WHERE user_id = \(userID) ORDER BY token", logger: logger)
         var result: [DeviceRecord] = []
-        for try await (token, user, sandbox, updated) in rows.decode((String, UUID, Bool, Date).self) {
-            result.append(DeviceRecord(userID: user, token: token, sandbox: sandbox, updatedAt: updated))
+        for try await (token, user, sandbox, updated, zone) in rows.decode((String, UUID, Bool, Date, String?).self) {
+            result.append(DeviceRecord(userID: user, token: token, sandbox: sandbox, updatedAt: updated, timeZone: zone))
         }
         return result
     }

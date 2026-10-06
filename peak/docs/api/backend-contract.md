@@ -49,7 +49,7 @@ Lifetimes: OAuth attempt 10 min · session code 2 min, single use · access toke
 | GET | `/v1/games/{universeId}/series?metric=ccu\|visits\|favourites\|robux&range=24h\|7d\|30d` | — | `MetricSeries` (≤ 300 points) |
 | PUT | `/v1/games/{universeId}/favourite` | `{ "value": true }` | `204` |
 | PUT | `/v1/games/{universeId}/working-on` | `{ "value": true }` | `204` |
-| POST | `/v1/devices` | `{ "apnsToken": "<hex>", "sandbox": false }` | `204` |
+| POST | `/v1/devices` | `{ "apnsToken": "<hex>", "sandbox": false }` | `204` | `timeZone` (optional IANA ID) schedules the morning briefing; unknown IDs are dropped.
 | GET | `/v1/alerts/rules` | — | `[AlertRule]` |
 | PUT | `/v1/alerts/rules/{id}` | `AlertRule` (id must match) | `AlertRule` |
 | DELETE | `/v1/alerts/rules/{id}` | — | `204` |
@@ -96,6 +96,11 @@ alert digests. It pushes one notification per incident, with the headline change
 next step. It only pushes bad news of medium severity or higher, detected in the last 30 minutes, and at most
 once per game, metric and direction every 6 hours (claimed atomically in `digest_pushes`). These are separate
 from the user's own alert rules.
+
+**Morning briefing notification**: every 15 minutes the server checks whether it's 8:00 in the time zone of
+each user's most recently registered device. If so, and the user has favourite games, it pushes the briefing
+headline and first action (AI-worded if the user opted in), once per local day, claimed atomically. Tapping
+the notification opens Home.
 
 ## Insights (decision 0007)
 

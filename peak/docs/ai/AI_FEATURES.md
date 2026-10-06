@@ -132,7 +132,7 @@ Status 2026-10-06:
 - **Still open:**
   - 8 in the app is built, but its server data needs the game to log funnels.
   - Error logs: server logs ingestion (`universe:read`).
-  - A push notification for the morning briefing (needs each user's time zone). Digest pushes are built.
+  - Error logs: an in-game reporter instead of the beta server-logs API (see the dev log).
   - Real Claude calls on staging.
 
 1. Daily AI briefing

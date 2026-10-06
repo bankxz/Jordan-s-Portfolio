@@ -92,6 +92,11 @@ public enum PeakServerApp {
         let analyticsClient = RobloxAnalyticsClient(baseURL: config.roblox.apisBaseURL, http: http)
         let revenue = RevenuePoller(store: store, tokens: tokens, analytics: analyticsClient, now: deps.now)
         let dailyAnalytics = AnalyticsPoller(store: store, tokens: tokens, analytics: analyticsClient, now: deps.now)
+        let briefingNotifier = BriefingNotifier(
+            store: store, insights: InsightBuilder(store: store, dashboard: DashboardBuilder(store: store, now: deps.now), now: deps.now),
+            ai: AIService(store: store, claude: deps.aiSettings == nil ? nil : deps.claude,
+                          settings: deps.claude == nil ? nil : deps.aiSettings, now: deps.now),
+            push: push, now: deps.now)
         let digestNotifier = DigestNotifier(
             store: store, insights: InsightBuilder(store: store, dashboard: DashboardBuilder(store: store, now: deps.now), now: deps.now),
             push: push, now: deps.now)
@@ -109,7 +114,9 @@ public enum PeakServerApp {
             PeriodicService(name: "revenue", interval: config.revenuePollInterval, initialDelay: .seconds(30), logger: logger) { try await revenue.tick(logger: $0) },
             // Daily metrics change once a day; every 6 hours catches Roblox's late revisions.
             PeriodicService(name: "analytics", interval: .seconds(6 * 3_600), initialDelay: .seconds(90), logger: logger) { try await dailyAnalytics.tick(logger: $0) },
-            PeriodicService(name: "digests", interval: .seconds(5 * 60), initialDelay: .seconds(120), logger: logger) { try await digestNotifier.tick(logger: $0) }
+            PeriodicService(name: "digests", interval: .seconds(5 * 60), initialDelay: .seconds(120), logger: logger) { try await digestNotifier.tick(logger: $0) },
+            // Every 15 minutes, so each time zone's 8:00 hour is caught (including half-hour zones).
+            PeriodicService(name: "briefings", interval: .seconds(15 * 60), initialDelay: .seconds(150), logger: logger) { try await briefingNotifier.tick(logger: $0) }
         )
         try await app.runService()
     }

@@ -130,9 +130,36 @@ struct CampaignDetailView: View {
 struct AlertsView: View {
     @Environment(AppModel.self) private var model
     @Environment(InsightsModel.self) private var insights
+    @Environment(NotificationController.self) private var notifications
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         List {
+            if notifications.status == .notDetermined || notifications.status == .denied {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Get notified", systemImage: "bell.badge")
+                            .font(.headline)
+                        Text("One notification per unusual change (not one per metric), plus your briefing at 8:00 each morning.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        if notifications.status == .denied {
+                            Button("Turn on in Settings") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                            }
+                            .frame(minHeight: 44)
+                        } else {
+                            Button("Turn on notifications") {
+                                Task { await notifications.requestPermission() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .frame(minHeight: 44)
+                            .accessibilityIdentifier("notificationsButton")
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
             if let digests = insights.digests.value, digests.isEmpty == false {
                 Section {
                     ForEach(digests) { digest in

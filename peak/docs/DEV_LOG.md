@@ -210,3 +210,21 @@ guide-swift-testing, swiftui/hig (import sheet with an on-device preview before 
 - Verified locally: 157 PeakKit tests and 121 server tests (in memory and on Postgres).
 - Not verified: the real Ads Manager export's headers. The alias list covers common names; the preview shows
   what was found before anything uploads.
+
+## 2026-10-06 — Slice 8: Notifications in the app, and the morning briefing
+
+Skills: usernotifications (permission in context, APNs registration, foreground presentation, taps; skill not
+installed in this cloud session, so I followed Apple's UserNotifications docs), guide-swift-concurrency (delegate
+callbacks are nonisolated; only Sendable values cross to the main actor)
+Reason: the app never registered for push. Rule alerts and digest pushes built on the server couldn't reach
+anyone.
+- NotificationController: asks for permission from a button on Alerts, never at launch.
+- The device token goes to the backend with the time zone. Taps follow only Peak's own routes, including a tap
+  that cold-starts the app.
+- Notifications show while Peak is open.
+- `aps-environment` entitlement added.
+- Server: device time zone (Postgres migration v6, invalid IDs dropped).
+- BriefingNotifier pushes the briefing at 8:00 local time, once per local day.
+- Verified locally: 125 server tests (in memory and on Postgres, migrations 1–6), 160 PeakKit tests.
+- Not verified: real APNs delivery (needs an Apple key and a device). The system permission dialog isn't
+  exercised in UI tests.

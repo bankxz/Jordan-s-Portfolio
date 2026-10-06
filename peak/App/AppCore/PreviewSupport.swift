@@ -10,6 +10,8 @@ enum PreviewSupport {
         return model
     }
 
+    static let notifications = NotificationController()
+
     static func insights(_ mode: DemoDashboardService.Mode = .normal, consented: Bool = false) -> InsightsModel {
         let model = InsightsModel(service: DemoInsightService(mode: mode, consented: consented))
         Task { await model.refresh() }

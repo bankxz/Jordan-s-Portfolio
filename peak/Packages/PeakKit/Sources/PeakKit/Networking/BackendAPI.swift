@@ -110,9 +110,12 @@ public enum BackendAPI {
         public var apnsToken: String
         /// `true` for development builds (APNs sandbox).
         public var sandbox: Bool
-        public init(apnsToken: String, sandbox: Bool) {
+        /// IANA time zone (`Europe/London`), so the morning briefing arrives at 8:00 local time.
+        public var timeZone: String?
+        public init(apnsToken: String, sandbox: Bool, timeZone: String? = nil) {
             self.apnsToken = apnsToken
             self.sandbox = sandbox
+            self.timeZone = timeZone
         }
     }
 

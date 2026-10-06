@@ -48,6 +48,8 @@ targets:
       path: App/Peak.entitlements
       properties:
         com.apple.security.application-groups: [group.com.peakstats.shared]
+        # Development APNs; Xcode switches to production when archiving for the App Store.
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.peakstats.app

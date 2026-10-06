@@ -133,12 +133,15 @@ public struct DeviceRecord: Sendable, Hashable {
     public var token: String
     public var sandbox: Bool
     public var updatedAt: Date
+    /// IANA identifier reported by the app; schedules the morning briefing. `nil` from older app versions.
+    public var timeZone: String?
 
-    public init(userID: UUID, token: String, sandbox: Bool, updatedAt: Date) {
+    public init(userID: UUID, token: String, sandbox: Bool, updatedAt: Date, timeZone: String? = nil) {
         self.userID = userID
         self.token = token
         self.sandbox = sandbox
         self.updatedAt = updatedAt
+        self.timeZone = timeZone
     }
 }
 

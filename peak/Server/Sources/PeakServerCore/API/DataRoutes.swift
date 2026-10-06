@@ -51,7 +51,9 @@ struct DataRoutes {
             guard (32...200).contains(token.count), token.allSatisfy(\.isHexDigit) else {
                 throw APIFailure.badRequest("invalid_device_token")
             }
-            try await store.saveDevice(DeviceRecord(userID: userID, token: token, sandbox: body.sandbox, updatedAt: now()))
+            // Unknown or oversized identifiers are dropped rather than stored.
+            let zone = body.timeZone.flatMap { $0.count <= 64 && TimeZone(identifier: $0) != nil ? $0 : nil }
+            try await store.saveDevice(DeviceRecord(userID: userID, token: token, sandbox: body.sandbox, updatedAt: now(), timeZone: zone))
             return JSONBody.noContent()
         }
 
