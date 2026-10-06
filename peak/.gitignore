@@ -1,0 +1,41 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Profiling output (ETTrace / memgraph)
+*.memgraph
+*.trace
+ettrace-output/
+
+# Secrets
+*.p8
+*.p12
+*.mobileprovision
+Secrets.xcconfig
+.env
+
+# Claude Code per-developer settings
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# XcodeGen output (regenerate with `xcodegen generate`)
+Peak.xcodeproj/
+App/Info.plist
+Widgets/Info.plist
+App/Peak.entitlements
+Widgets/PeakWidgets.entitlements
+build.log
