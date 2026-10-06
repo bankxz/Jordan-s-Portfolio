@@ -42,7 +42,7 @@ public enum InsightText {
     }
 
     /// One decimal, dropped when it's .0: 18.25 → "18.3", 24.0 → "24".
-    static func oneDecimal(_ value: Double) -> String {
+    public static func oneDecimal(_ value: Double) -> String {
         guard value.isFinite else { return "—" }
         let rounded = (value * 10).rounded() / 10
         if rounded == rounded.rounded() { return String(Int64(rounded)) }

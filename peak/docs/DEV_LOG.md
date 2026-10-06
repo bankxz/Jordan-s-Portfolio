@@ -145,3 +145,19 @@ Deployment-target notes: none in PeakKit (Foundation only). Charts/SwiftUI in th
 Feasibility check: Open Cloud openapi.json and the Analytics supported-metrics page (2026-10-06). See
 docs/ai/AI_FEATURES.md.
 Decisions: [0007](decisions/0007-ai-layer.md)
+Slice 5a (PeakKit engines, commit c8130dc): 52 new tests, mutation-checked (removing the crash-rate override or
+loosening the number tolerance fails tests).
+Slice 5b (server):
+- Claude over raw HTTP: structured output, `fallbacks: "default"` for models that support it, refusal and
+  `max_tokens` checked before content, cost from `usage`.
+- AI service: consent, daily ask limit, monthly budget, number check, read-only Ask tool loop with assistant turns
+  round-tripped unchanged (preserved thinking).
+- Insight routes, briefing narration cache, update detection from the games API `updated` field, Postgres
+  migration v2 (timeline_events, ai_consents, ai_usage).
+- Verified locally: 109 server tests in memory and against Postgres 16 (run twice against the same database);
+  the app's RemoteInsightService against the live server in AppCompatibilityTests; mutation checks (removing the
+  number check, the consent check or the half-open sample window each fails tests).
+- Found while testing: a closed sample window averaged the previous half hour into "now", reporting a 40% drop
+  as 20%. Fixed with a half-open window.
+- Not verified: real Claude API calls (no key in this environment; request shape follows the claude-api skill),
+  and whether Roblox's `updated` changes only on publish.

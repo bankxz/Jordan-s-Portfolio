@@ -143,6 +143,37 @@ public struct PostgresStore: Store {
                 updated_at TIMESTAMPTZ NOT NULL)
             """,
         ]),
+        (2, [
+            // universe_id 0 = platform-wide event (Roblox incident, calendar).
+            """
+            CREATE TABLE timeline_events (
+                universe_id BIGINT NOT NULL,
+                kind TEXT NOT NULL,
+                time TIMESTAMPTZ NOT NULL,
+                end_time TIMESTAMPTZ,
+                detail TEXT NOT NULL,
+                PRIMARY KEY (universe_id, kind, time))
+            """,
+            "CREATE INDEX timeline_events_time_idx ON timeline_events (time)",
+            """
+            CREATE TABLE ai_consents (
+                user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                consented_at TIMESTAMPTZ NOT NULL)
+            """,
+            """
+            CREATE TABLE ai_usage (
+                id BIGSERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                feature TEXT NOT NULL,
+                model TEXT NOT NULL,
+                input_tokens INTEGER NOT NULL,
+                output_tokens INTEGER NOT NULL,
+                cost_micros BIGINT NOT NULL,
+                time TIMESTAMPTZ NOT NULL)
+            """,
+            "CREATE INDEX ai_usage_time_idx ON ai_usage (time)",
+            "CREATE INDEX ai_usage_user_idx ON ai_usage (user_id, feature, time)",
+        ]),
     ]
 
     /// Applies pending migrations under an advisory lock, so several instances starting at once are safe.
@@ -567,6 +598,76 @@ public struct PostgresStore: Store {
     }
 
     // MARK: Account
+
+    // MARK: Timeline
+
+    public func appendTimelineEvents(_ events: [TimelineEvent]) async throws {
+        // A handful per poll at most, so one statement each keeps optional end times simple.
+        for event in events {
+            try await client.query("""
+                INSERT INTO timeline_events (universe_id, kind, time, end_time, detail)
+                VALUES (\(event.gameID ?? 0), \(event.kind.rawValue), \(event.date), \(event.endDate), \(event.detail))
+                ON CONFLICT (universe_id, kind, time) DO NOTHING
+                """, logger: logger)
+        }
+    }
+
+    public func timelineEvents(universeIDs: [Int64], from: Date, to: Date) async throws -> [TimelineEvent] {
+        let ids = universeIDs + [0]
+        let rows = try await client.query("""
+            SELECT universe_id, kind, time, end_time, detail FROM timeline_events
+            WHERE universe_id = ANY(\(ids)) AND COALESCE(end_time, time) >= \(from) AND time <= \(to)
+            ORDER BY time, universe_id, kind
+            """, logger: logger)
+        var result: [TimelineEvent] = []
+        for try await (universe, kind, time, end, detail) in rows.decode((Int64, String, Date, Date?, String).self) {
+            guard let kind = TimelineEvent.Kind(rawValue: kind) else { continue }
+            result.append(TimelineEvent(kind: kind, gameID: universe == 0 ? nil : universe, date: time, endDate: end, detail: detail))
+        }
+        return result
+    }
+
+    // MARK: AI
+
+    public func aiConsent(userID: UUID) async throws -> Date? {
+        let rows = try await client.query("SELECT consented_at FROM ai_consents WHERE user_id = \(userID)", logger: logger)
+        for try await date in rows.decode(Date.self) { return date }
+        return nil
+    }
+
+    public func setAIConsent(userID: UUID, consentedAt: Date?) async throws {
+        if let consentedAt {
+            try await client.query("""
+                INSERT INTO ai_consents (user_id, consented_at) VALUES (\(userID), \(consentedAt))
+                ON CONFLICT (user_id) DO UPDATE SET consented_at = EXCLUDED.consented_at
+                """, logger: logger)
+        } else {
+            try await client.query("DELETE FROM ai_consents WHERE user_id = \(userID)", logger: logger)
+        }
+    }
+
+    public func recordAIUsage(_ usage: AIUsageRecord) async throws {
+        try await client.query("""
+            INSERT INTO ai_usage (user_id, feature, model, input_tokens, output_tokens, cost_micros, time)
+            VALUES (\(usage.userID), \(usage.feature), \(usage.model), \(usage.inputTokens), \(usage.outputTokens),
+                    \(usage.costMicros), \(usage.time))
+            """, logger: logger)
+    }
+
+    public func aiCostMicros(since: Date) async throws -> Int64 {
+        let rows = try await client.query("SELECT COALESCE(SUM(cost_micros), 0)::BIGINT FROM ai_usage WHERE time >= \(since)",
+                                          logger: logger)
+        for try await total in rows.decode(Int64.self) { return total }
+        return 0
+    }
+
+    public func aiRequestCount(userID: UUID, feature: String, since: Date) async throws -> Int {
+        let rows = try await client.query("""
+            SELECT COUNT(*)::BIGINT FROM ai_usage WHERE user_id = \(userID) AND feature = \(feature) AND time >= \(since)
+            """, logger: logger)
+        for try await count in rows.decode(Int64.self) { return Int(count) }
+        return 0
+    }
 
     public func deleteUser(id: UUID) async throws {
         // Every user-owned table cascades from users.

@@ -17,6 +17,9 @@ public actor InMemoryStore: Store {
     private var ruleStates: [UUID: AlertRuleState] = [:]
     private var events: [UUID: [AlertEvent]] = [:]
     private var deviceRecords: [String: DeviceRecord] = [:]
+    private var timeline: [TimelineEvent] = []
+    private var consents: [UUID: Date] = [:]
+    private var usage: [AIUsageRecord] = []
 
     public init() {}
 
@@ -217,6 +220,42 @@ public actor InMemoryStore: Store {
 
     // MARK: Account
 
+    // MARK: Timeline
+
+    public func appendTimelineEvents(_ newEvents: [TimelineEvent]) {
+        for event in newEvents where timeline.contains(where: {
+            $0.gameID == event.gameID && $0.kind == event.kind && $0.date == event.date
+        }) == false {
+            timeline.append(event)
+        }
+    }
+
+    public func timelineEvents(universeIDs: [Int64], from: Date, to: Date) -> [TimelineEvent] {
+        let wanted = Set(universeIDs)
+        return timeline
+            .filter { event in
+                (event.gameID == nil || wanted.contains(event.gameID!))
+                    && (event.endDate ?? event.date) >= from && event.date <= to
+            }
+            .sorted { $0.date < $1.date }
+    }
+
+    // MARK: AI
+
+    public func aiConsent(userID: UUID) -> Date? { consents[userID] }
+
+    public func setAIConsent(userID: UUID, consentedAt: Date?) { consents[userID] = consentedAt }
+
+    public func recordAIUsage(_ record: AIUsageRecord) { usage.append(record) }
+
+    public func aiCostMicros(since: Date) -> Int64 {
+        usage.filter { $0.time >= since }.reduce(0) { $0 + $1.costMicros }
+    }
+
+    public func aiRequestCount(userID: UUID, feature: String, since: Date) -> Int {
+        usage.filter { $0.userID == userID && $0.feature == feature && $0.time >= since }.count
+    }
+
     public func deleteUser(id: UUID) {
         users[id] = nil
         grants[id] = nil
@@ -230,5 +269,12 @@ public actor InMemoryStore: Store {
         }
         events[id] = nil
         deviceRecords = deviceRecords.filter { $0.value.userID != id }
+        consents[id] = nil
+        // Spend stays counted, without the link to the deleted user.
+        usage = usage.map { record in
+            var record = record
+            if record.userID == id { record.userID = nil }
+            return record
+        }
     }
 }

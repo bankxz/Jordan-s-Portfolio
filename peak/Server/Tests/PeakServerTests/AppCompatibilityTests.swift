@@ -62,14 +62,27 @@ struct AppCompatibilityTests {
             #expect(try await api.send(BackendAPI.saveAlertRule(rule)) == rule)
             #expect(try await api.send(BackendAPI.alertRules()) == [rule])
 
-            // 5. Reconnect state reaches the app as its own error case.
+            // 5. Insights through the app's RemoteInsightService. AI is off on this server.
+            let insights = RemoteInsightService(client: api)
+            let settings = try await insights.settings()
+            #expect(settings.available == false && settings.consented == false)
+            let briefing = try await insights.briefing()
+            #expect(briefing.games.map(\.name) == ["Attack Animals"], "favourited above")
+            #expect(briefing.isAIWritten == false)
+            #expect(try await insights.alertDigests().isEmpty)
+            #expect(try await insights.portfolio().map(\.gameID) == [DataRouteTests.universe])
+            #expect(try await insights.updateImpact(gameID: DataRouteTests.universe) == nil, "404 maps to nil")
+            #expect(try await insights.setConsent(true).consented)
+            await #expect(throws: APIError.server(status: 503)) { try await insights.ask("Why?") }
+
+            // 6. Reconnect state reaches the app as its own error case.
             let auth = try await AuthService(store: harness.store, oauth: harness.oauth, box: TestKeys.box,
                                              appCallbackURL: URL(string: "peakstats://x")!, now: harness.clock.function)
                 .authenticate(accessToken: try await coordinator.validAccessToken())
             try await harness.store.deleteGrant(userID: auth.userID)
             await #expect(throws: APIError.reconnectRequired) { try await service.dashboard() }
 
-            // 6. Sign out on the server ends the session for the app: the 401 triggers one refresh attempt,
+            // 7. Sign out on the server ends the session for the app: the 401 triggers one refresh attempt,
             //    the revoked refresh token is rejected, and the coordinator clears the local session.
             _ = try await api.send(BackendAPI.logout())
             await #expect(throws: AuthError.sessionExpired) { try await service.dashboard() }

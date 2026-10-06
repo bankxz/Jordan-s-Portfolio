@@ -113,6 +113,28 @@ struct ServerConfigTests {
         #expect(throws: ServerConfig.ConfigError.self) { try ServerConfig.fromEnvironment(env) }
     }
 
+    @Test func aiIsOffWithoutAKeyAndConfiguredWithOne() throws {
+        #expect(try ServerConfig.fromEnvironment(Self.base).ai == nil)
+        var env = Self.base
+        env["ANTHROPIC_API_KEY"] = "sk-ant-secret-value"
+        env["PEAK_AI_MODEL_ASK"] = "claude-sonnet-5-5"
+        env["PEAK_AI_MONTHLY_BUDGET_USD"] = "10"
+        let config = try ServerConfig.fromEnvironment(env)
+        let ai = try #require(config.ai)
+        #expect(ai.model == "claude-opus-5-5")
+        #expect(ai.askModel == "claude-sonnet-5-5")
+        #expect(ai.briefingModel == nil)
+        #expect(ai.dailyAskLimit == 20)
+        let settings = AIService.Settings(ai)
+        #expect(settings.briefingModel == "claude-opus-5-5")
+        #expect(settings.monthlyBudgetMicros == 10_000_000)
+        #expect(config.description.contains("sk-ant-secret-value") == false)
+        #expect(config.description.contains("claude-opus-5-5"))
+
+        env["PEAK_AI_MONTHLY_BUDGET_USD"] = "-1"
+        #expect(throws: ServerConfig.ConfigError.self) { try ServerConfig.fromEnvironment(env) }
+    }
+
     @Test func apnsNeedsTeamAndKeyIDs() {
         var env = Self.base
         env["APNS_PRIVATE_KEY"] = "pem"

@@ -11,14 +11,20 @@ public struct ServerDependencies: Sendable {
     public var appCallbackURL: URL
     public var now: @Sendable () -> Date
     public var authRateLimit: Int
+    /// `nil` → AI wording off (deterministic insights still served).
+    public var claude: (any ClaudeAPI)?
+    public var aiSettings: AIService.Settings?
 
     public init(store: any Store, oauth: any RobloxOAuth, box: SecretBox, appCallbackURL: URL,
-                authRateLimit: Int = 30, now: @escaping @Sendable () -> Date = { Date() }) {
+                authRateLimit: Int = 30, claude: (any ClaudeAPI)? = nil, aiSettings: AIService.Settings? = nil,
+                now: @escaping @Sendable () -> Date = { Date() }) {
         self.store = store
         self.oauth = oauth
         self.box = box
         self.appCallbackURL = appCallbackURL
         self.authRateLimit = authRateLimit
+        self.claude = claude
+        self.aiSettings = aiSettings
         self.now = now
     }
 }
@@ -37,7 +43,12 @@ public enum PeakServerApp {
 
         let authenticated = router.group().add(middleware: AuthMiddleware(auth: auth))
         authRoutes.addAuthenticatedRoutes(to: authenticated)
-        DataRoutes(builder: DashboardBuilder(store: deps.store, now: deps.now), store: deps.store, now: deps.now)
+        let dashboard = DashboardBuilder(store: deps.store, now: deps.now)
+        DataRoutes(builder: dashboard, store: deps.store, now: deps.now).add(to: authenticated)
+        let ai = AIService(store: deps.store, claude: deps.aiSettings == nil ? nil : deps.claude,
+                           settings: deps.claude == nil ? nil : deps.aiSettings, now: deps.now)
+        InsightRoutes(insights: InsightBuilder(store: deps.store, dashboard: dashboard, now: deps.now),
+                      dashboard: dashboard, ai: ai, cache: NarrationCache(), now: deps.now)
             .add(to: authenticated)
         return router
     }
@@ -59,11 +70,18 @@ public enum PeakServerApp {
             postgres = nil
             store = InMemoryStore()
         }
+        // Claude responses with thinking can take a while; give them their own, longer timeout.
+        let claude = config.ai.map {
+            ClaudeClient(apiKey: $0.apiKey, baseURL: $0.baseURL,
+                         http: LiveHTTPExecutor(timeout: .seconds(120), maxResponseBytes: 2 * 1024 * 1024))
+        }
         let deps = ServerDependencies(
             store: store,
             oauth: RobloxOAuthClient(config: config.roblox, http: http),
             box: try SecretBox(key: config.tokenEncryptionKey),
-            appCallbackURL: config.appCallbackURL
+            appCallbackURL: config.appCallbackURL,
+            claude: claude,
+            aiSettings: config.ai.map(AIService.Settings.init)
         )
 
         let push: any PushSender = try config.apns.map { try APNsSender(config: $0, http: http) } ?? DisabledPushSender()

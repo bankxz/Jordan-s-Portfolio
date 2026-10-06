@@ -78,6 +78,22 @@ public protocol Store: Sendable {
     func devices(userID: UUID) async throws -> [DeviceRecord]
     func deleteDevice(token: String) async throws
 
+    // MARK: Timeline (updates, campaign changes, incidents) for possible causes and update reports
+    /// Inserts events, ignoring ones already stored (same game, kind and time).
+    func appendTimelineEvents(_ events: [TimelineEvent]) async throws
+    /// Events for these games plus platform-wide ones (`gameID == nil`) overlapping `[from, to]`, oldest first.
+    func timelineEvents(universeIDs: [Int64], from: Date, to: Date) async throws -> [TimelineEvent]
+
+    // MARK: AI
+    func aiConsent(userID: UUID) async throws -> Date?
+    /// `nil` withdraws consent.
+    func setAIConsent(userID: UUID, consentedAt: Date?) async throws
+    func recordAIUsage(_ usage: AIUsageRecord) async throws
+    /// Total cost of all AI calls at or after `since`, in micro-dollars.
+    func aiCostMicros(since: Date) async throws -> Int64
+    /// Number of the user's calls for `feature` at or after `since`.
+    func aiRequestCount(userID: UUID, feature: String, since: Date) async throws -> Int
+
     // MARK: Account
     /// Removes everything belonging to the user (disconnect / account deletion).
     func deleteUser(id: UUID) async throws

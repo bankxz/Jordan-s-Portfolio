@@ -47,6 +47,31 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
         }
     }
 
+    /// Claude settings (decision 0007). `nil` → AI wording off; deterministic insights still work.
+    public struct AI: Sendable {
+        public var apiKey: String
+        public var baseURL: URL
+        /// Default model for every AI feature. The claude-api skill's default; set a cheaper one if you prefer.
+        public var model: String
+        public var briefingModel: String?
+        public var askModel: String?
+        public var dailyAskLimit: Int
+        /// Monthly spend cap across all users; above it AI calls stop and templates are served.
+        public var monthlyBudgetUSD: Double
+
+        public init(apiKey: String, baseURL: URL = URL(string: "https://api.anthropic.com/")!,
+                    model: String = "claude-opus-5-5", briefingModel: String? = nil, askModel: String? = nil,
+                    dailyAskLimit: Int = 20, monthlyBudgetUSD: Double = 25) {
+            self.apiKey = apiKey
+            self.baseURL = baseURL
+            self.model = model
+            self.briefingModel = briefingModel
+            self.askModel = askModel
+            self.dailyAskLimit = dailyAskLimit
+            self.monthlyBudgetUSD = monthlyBudgetUSD
+        }
+    }
+
     public var host: String
     public var port: Int
     public var roblox: Roblox
@@ -60,6 +85,7 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
     public var apns: APNs?
     public var statsPollInterval: Duration
     public var revenuePollInterval: Duration
+    public var ai: AI?
 
     public init(
         host: String = "0.0.0.0",
@@ -70,7 +96,8 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
         databaseURL: String? = nil,
         apns: APNs? = nil,
         statsPollInterval: Duration = .seconds(60),
-        revenuePollInterval: Duration = .seconds(15 * 60)
+        revenuePollInterval: Duration = .seconds(15 * 60),
+        ai: AI? = nil
     ) {
         self.host = host
         self.port = port
@@ -81,6 +108,7 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
         self.apns = apns
         self.statsPollInterval = statsPollInterval
         self.revenuePollInterval = revenuePollInterval
+        self.ai = ai
     }
 
     public enum ConfigError: Error, CustomStringConvertible, Equatable {
@@ -133,6 +161,26 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
             port = 8080
         }
 
+        var ai: AI?
+        if let key = env["ANTHROPIC_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines), key.isEmpty == false {
+            func positive(_ name: String, default value: Double) throws -> Double {
+                guard let raw = env[name], raw.isEmpty == false else { return value }
+                guard let parsed = Double(raw), parsed.isFinite, parsed >= 0 else {
+                    throw ConfigError.invalid(name, reason: "must be a non-negative number")
+                }
+                return parsed
+            }
+            func model(_ name: String) -> String? {
+                env[name].flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0.trimmingCharacters(in: .whitespaces) }
+            }
+            ai = AI(apiKey: key,
+                    model: model("PEAK_AI_MODEL") ?? "claude-opus-5-5",
+                    briefingModel: model("PEAK_AI_MODEL_BRIEFING"),
+                    askModel: model("PEAK_AI_MODEL_ASK"),
+                    dailyAskLimit: Int(try positive("PEAK_AI_DAILY_ASKS", default: 20)),
+                    monthlyBudgetUSD: try positive("PEAK_AI_MONTHLY_BUDGET_USD", default: 25))
+        }
+
         return ServerConfig(
             host: env["HOST"] ?? "0.0.0.0",
             port: port,
@@ -142,13 +190,15 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
             appCallbackURL: try url("APP_CALLBACK_URL", env["APP_CALLBACK_URL"] ?? "peakstats://auth/complete"),
             tokenEncryptionKey: key,
             databaseURL: env["DATABASE_URL"].flatMap { $0.isEmpty ? nil : $0 },
-            apns: apns
+            apns: apns,
+            ai: ai
         )
     }
 
     public var description: String {
         "ServerConfig(host: \(host), port: \(port), robloxClientID: \(roblox.clientID), redirect: \(roblox.redirectURI), "
             + "secret: <redacted>, encryptionKey: <redacted>, database: \(databaseURL == nil ? "in-memory" : "postgres"), "
-            + "apns: \(apns == nil ? "disabled" : "enabled"))"
+            + "apns: \(apns == nil ? "disabled" : "enabled"), "
+            + "ai: \(ai.map { "\($0.model), key: <redacted>, budget: $\($0.monthlyBudgetUSD)/month" } ?? "disabled"))"
     }
 }

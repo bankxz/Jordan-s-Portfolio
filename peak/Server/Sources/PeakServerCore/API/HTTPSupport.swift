@@ -34,6 +34,8 @@ public enum APIFailure: Error, HTTPResponseError, Equatable {
     case rateLimited(retryAfter: Int)
     case upstreamUnavailable
     case reconnectRequired
+    case forbidden(String)
+    case unavailable(String)
 
     public var status: HTTPResponse.Status {
         switch self {
@@ -43,6 +45,8 @@ public enum APIFailure: Error, HTTPResponseError, Equatable {
         case .rateLimited: .tooManyRequests
         case .upstreamUnavailable: .badGateway
         case .reconnectRequired: .conflict
+        case .forbidden: .forbidden
+        case .unavailable: .serviceUnavailable
         }
     }
 
@@ -54,6 +58,8 @@ public enum APIFailure: Error, HTTPResponseError, Equatable {
         case .rateLimited: "rate_limited"
         case .upstreamUnavailable: "upstream_unavailable"
         case .reconnectRequired: "reconnect_required"
+        case .forbidden(let code): code
+        case .unavailable(let code): code
         }
     }
 

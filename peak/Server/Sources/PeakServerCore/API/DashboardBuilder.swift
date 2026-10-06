@@ -75,7 +75,8 @@ public struct DashboardBuilder: Sendable {
         return Dashboard(
             games: games,
             goals: try await store.goals(userID: userID),
-            // Roblox exposes no ads/campaign API to OAuth apps yet; the app shows its empty state.
+            // Roblox's Ads Management API has campaigns but no performance metrics; those need an Ads Manager
+            // CSV import (docs/ai/AI_FEATURES.md). Until then the app shows its empty state.
             campaigns: [],
             recentAlerts: try await store.recentAlertEvents(userID: userID, limit: 20),
             ccuSparklines: sparklines,

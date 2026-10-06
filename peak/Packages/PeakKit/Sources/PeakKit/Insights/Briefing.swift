@@ -36,6 +36,15 @@ public struct GameBrief: Hashable, Codable, Sendable, Identifiable {
     public var gameID: Int64
     public var name: String
     public var facts: [BriefFact]
+    /// One or two sentences written by AI from `facts`. `nil` with AI off.
+    public var summary: String?
+
+    public init(gameID: Int64, name: String, facts: [BriefFact], summary: String? = nil) {
+        self.gameID = gameID
+        self.name = name
+        self.facts = facts
+        self.summary = summary
+    }
 
     public var id: Int64 { gameID }
 }

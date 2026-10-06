@@ -12,11 +12,13 @@ struct RouteHarness {
     let oauth = FakeRobloxOAuth()
     let clock = TestClock()
     var rateLimit = 1_000
+    var claude: (any ClaudeAPI)?
+    var aiSettings: AIService.Settings?
 
     var deps: ServerDependencies {
         ServerDependencies(store: store, oauth: oauth, box: TestKeys.box,
                            appCallbackURL: URL(string: "peakstats://auth/complete")!,
-                           authRateLimit: rateLimit, now: clock.function)
+                           authRateLimit: rateLimit, claude: claude, aiSettings: aiSettings, now: clock.function)
     }
 
     var app: some ApplicationProtocol {

@@ -40,6 +40,10 @@ public struct StatsPoller: Sendable {
                     MetricSample(universeID: s.universeID, metric: .visits, time: time, value: Double(s.visits)),
                     MetricSample(universeID: s.universeID, metric: .favourites, time: time, value: Double(s.favourites)),
                 ] })
+                // Deduplicated by the store, so the same publish time recorded every minute is a no-op.
+                try await store.appendTimelineEvents(stats.compactMap { s in
+                    s.updated.map { TimelineEvent(kind: .update, gameID: s.universeID, date: $0, detail: Self.updateDetail($0)) }
+                })
                 updated += stats.count
             } catch is CancellationError {
                 throw CancellationError()
@@ -51,6 +55,15 @@ public struct StatsPoller: Sendable {
         try await store.deleteSamples(before: time.addingTimeInterval(-Self.retention))
         try await alerts.evaluate(logger: logger)
         return updated
+    }
+
+    /// "of 20 Sep, 18:22 UTC", read as "Update of 20 Sep, 18:22 UTC".
+    static func updateDetail(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "d MMM, HH:mm"
+        return "of \(formatter.string(from: date)) UTC"
     }
 }
 

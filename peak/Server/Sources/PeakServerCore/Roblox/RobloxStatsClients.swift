@@ -8,6 +8,8 @@ public struct UniverseStats: Sendable, Hashable {
     public var playing: Int
     public var visits: Int64
     public var favourites: Int64
+    /// When the experience was last published or edited (`updated`). Feeds update reports and possible causes.
+    public var updated: Date? = nil
 }
 
 public protocol RobloxGamesAPI: Sendable {
@@ -46,6 +48,7 @@ public struct RobloxGamesClient: RobloxGamesAPI {
                 var playing: Int?
                 var visits: Int64?
                 var favoritedCount: Int64?
+                var updated: String?
             }
             var data: [Entry]?
         }
@@ -57,8 +60,19 @@ public struct RobloxGamesClient: RobloxGamesAPI {
             guard let id = entry.id, requested.contains(id), let name = entry.name else { return nil }
             return UniverseStats(universeID: id, rootPlaceID: entry.rootPlaceId ?? 0, name: name,
                                  playing: max(0, entry.playing ?? 0), visits: max(0, entry.visits ?? 0),
-                                 favourites: max(0, entry.favoritedCount ?? 0))
+                                 favourites: max(0, entry.favoritedCount ?? 0),
+                                 updated: entry.updated.flatMap(Self.parseDate))
         }
+    }
+}
+
+extension RobloxGamesClient {
+    /// ISO 8601 with or without fractional seconds ("2026-09-20T18:22:11.123Z").
+    static func parseDate(_ raw: String) -> Date? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: raw) { return date }
+        return ISO8601DateFormatter().date(from: raw)
     }
 }
 

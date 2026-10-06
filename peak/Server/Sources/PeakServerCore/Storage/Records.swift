@@ -151,3 +151,27 @@ public struct OwnedAlertRule: Sendable, Hashable {
         self.rule = rule
     }
 }
+
+/// One Claude call, for the monthly budget and per-user daily limits. No prompt or answer text is stored.
+public struct AIUsageRecord: Sendable, Hashable {
+    /// `nil` once the user deleted their account; the spend still counts towards the month.
+    public var userID: UUID?
+    public var feature: String
+    public var model: String
+    public var inputTokens: Int
+    public var outputTokens: Int
+    /// Cost in millionths of a US dollar.
+    public var costMicros: Int64
+    public var time: Date
+
+    public init(userID: UUID?, feature: String, model: String, inputTokens: Int, outputTokens: Int,
+                costMicros: Int64, time: Date) {
+        self.userID = userID
+        self.feature = feature
+        self.model = model
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
+        self.costMicros = costMicros
+        self.time = time
+    }
+}

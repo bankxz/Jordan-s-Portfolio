@@ -28,6 +28,11 @@ Tests/        Swift Testing: contract suite (memory + Postgres), auth, routes, w
 | `APP_CALLBACK_URL` | | Default `peakstats://auth/complete` |
 | `APNS_PRIVATE_KEY`, `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_BUNDLE_ID` | | `.p8` contents (newlines may be `\n`). Unset → pushes disabled. |
 | `PORT`, `HOST`, `LOG_LEVEL` | | Defaults `8080`, `0.0.0.0`, `info` |
+| `ANTHROPIC_API_KEY` | | Claude API key from platform.claude.com (separate from a Claude subscription). Unset → AI wording off; deterministic insights still work. |
+| `PEAK_AI_MODEL` | | Default `claude-opus-5-5`. Cheaper: `claude-sonnet-5-5` ($2/$10 per M tokens) or `claude-haiku-4-5` ($1/$5). |
+| `PEAK_AI_MODEL_BRIEFING`, `PEAK_AI_MODEL_ASK` | | Per-feature overrides of `PEAK_AI_MODEL` |
+| `PEAK_AI_DAILY_ASKS` | | Questions per user per UTC day. Default `20`. |
+| `PEAK_AI_MONTHLY_BUDGET_USD` | | Spend cap across all users, from each response's token usage. Default `25`. Above it, AI stops until next month. Also set a spend limit in the Claude Console. |
 
 ### Roblox OAuth app
 
@@ -79,3 +84,6 @@ running). Put it behind HTTPS; the Roblox redirect URL must be `https`. Set the 
 - Unauthenticated auth endpoints are rate-limited per client address (in-process; put a shared limiter at
   the edge if you run many instances).
 - Every data route checks the universe is in the caller's Roblox grant.
+- AI (decision 0007): off unless configured and the user opts in. Only aggregates are sent to Anthropic, never
+  player IDs. Ask can only call read-only tools scoped to the caller's games. Answers with numbers not found
+  in the facts or tool results are replaced. Usage is recorded without prompt or answer text.

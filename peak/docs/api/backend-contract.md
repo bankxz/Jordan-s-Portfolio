@@ -14,11 +14,14 @@ server with the app's networking stack over real HTTP to keep them in sync.
 
 | Status | Codes | App mapping (`APIError`) |
 |---|---|---|
-| 400 | `invalid_body`, `invalid_metric`, `invalid_range`, `invalid_universe`, `invalid_id`, `id_mismatch`, `invalid_device_token`, `invalid_threshold`, `invalid_fraction`, `invalid_window`, `invalid_cooldown`, `too_many_rules` | `unexpectedStatus(400)` |
+| 400 | `invalid_body`, `invalid_metric`, `invalid_range`, `invalid_universe`, `invalid_id`, `id_mismatch`, `invalid_device_token`, `invalid_threshold`, `invalid_fraction`, `invalid_window`, `invalid_cooldown`, `too_many_rules`, `invalid_question` | `unexpectedStatus(400)` |
 | 401 | `unauthorized` (+ `WWW-Authenticate: Bearer`) | refresh once, then `unauthorized` / `AuthError.sessionExpired` |
+| 403 | `ai_consent_required`: the user hasn't turned on AI features | `forbidden` |
 | 404 | `not_found` (also for other users' resources) | `notFound` |
 | 409 | `reconnect_required`: Roblox access was revoked or expired | `reconnectRequired` |
 | 429 | `rate_limited` + `Retry-After` | `rateLimited` |
+| 502 | `upstream_unavailable` (Roblox or Claude failed) | `server(502)` |
+| 503 | `ai_unavailable`: AI isn't configured on the server or the monthly AI budget is spent | `server(503)` |
 | 5xx | | `server` |
 
 ## Auth
@@ -62,7 +65,7 @@ Dashboard data sources:
 | `stats.robux24h` | Analytics Query API `ItemMonetizationRevenue` (OneHour), summed over 24 h | polled every 15 min; `null` without `universe.analytics:read` |
 | `ccuSparklines` | stored samples, last 24 h → 24 points | |
 | `recentAlerts` | alert evaluator | last 20 |
-| `campaigns` | — | always `[]`: Roblox has no ads API for OAuth apps yet |
+| `campaigns` | — | `[]` for now. Roblox's Ads Management API (`ad.campaign:read`, experimental) has campaign status and budgets but no impressions, clicks or spend; performance needs an Ads Manager CSV import (docs/ai/AI_FEATURES.md) |
 
 ## Alerts
 
@@ -77,6 +80,29 @@ pushes to the user's devices:
 ```
 
 Tokens that APNs reports as unregistered are deleted.
+
+## Insights (decision 0007)
+
+Deterministic insights work for every user. AI wording is added only when the server has
+`ANTHROPIC_API_KEY`, the user has consented, and the monthly budget isn't spent. AI output must pass the
+number check (`NumberGrounding`): otherwise the template text is returned.
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| GET | `/v1/insights/settings` | — | `AISettings` (`available`, `consented`, `asksRemainingToday`, `dailyAskLimit`) |
+| PUT | `/v1/insights/consent` | `{ "value": true }` | `AISettings` |
+| GET | `/v1/insights/briefing` | — | `Briefing` for favourite games (`isAIWritten` says whether AI worded it; AI wording is cached while the facts are unchanged) |
+| POST | `/v1/insights/ask` | `{ "question": "…" }` (1–500 chars) | `AskAnswer`; `403 ai_consent_required`, `429` at the daily limit (`Retry-After` = until UTC midnight), `503 ai_unavailable` |
+| GET | `/v1/insights/alerts` | — | `[AlertDigest]`: unusual changes now, with possible causes and a next step |
+| GET | `/v1/insights/portfolio` | — | `[GameHealth]` ranked |
+| GET | `/v1/games/{universeId}/update-impact` | — | `UpdateImpactReport` for the latest update in 30 days; `404` when none |
+
+Sources in V1: CCU and revenue samples; update times from the public games API `updated` field (stored as
+timeline events, so edits to the experience's settings also count). Retention, crash rate, sessions and
+funnels need more Analytics data and feed the same engines once ingested.
+
+Ask runs a read-only tool loop (`list_games`, `get_metric_history`, `get_alerts`, `get_update_impact`,
+`get_goals`, `get_portfolio_health`), all scoped to the caller's universes: at most 6 rounds and 8 tool calls.
 
 ## Not yet implemented
 
