@@ -99,6 +99,17 @@ public protocol Store: Sendable {
     func saveImportedCampaigns(userID: UUID, campaigns: [Campaign], now: Date) async throws
     func importedCampaigns(userID: UUID) async throws -> [Campaign]
 
+    // MARK: Error reports from the game (decision 0008)
+    /// Stores the key's hash for this user and universe, replacing the user's previous key for it.
+    func saveIngestKey(hash: String, userID: UUID, universeID: Int64, createdAt: Date) async throws
+    func ingestKey(hash: String) async throws -> IngestKeyRecord?
+    /// Adds counts to the universe's rows for the UTC day starting at `day`. A signature not yet seen that day is
+    /// dropped once the day has `ErrorReportLimits.signaturesPerDay` signatures.
+    func addErrorCounts(universeID: Int64, day: Date, counts: [ErrorCount]) async throws
+    /// Rows last seen at or after `since`, one per day, signature, place version and source.
+    func errorCounts(universeID: Int64, since: Date) async throws -> [ErrorCount]
+    func deleteErrorCounts(before: Date) async throws
+
     // MARK: Digest pushes
     /// Atomically records that `key` was pushed to the user at `at`, unless it was already pushed within
     /// `cooldown`. Returns `true` when the caller should push.

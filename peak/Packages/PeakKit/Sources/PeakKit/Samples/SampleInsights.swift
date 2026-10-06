@@ -69,6 +69,28 @@ public extension SampleData {
         ], periodEnd: Calendar.utc.startOfDay(for: now))]
     }
 
+    /// What the in-game reporter would collect for Attack Animals: one bug new in v128, one older one.
+    static func errorClusters(gameID: Int64, now: Date) -> [ErrorCluster] {
+        guard gameID == attackAnimalsID else { return [] }
+        let update = updateDate(now: now)
+        let messages = [
+            "ServerScriptService.Pets:42: attempt to index nil with 'Level' (Players.Alice.Backpack)",
+            "DataStore request dropped for key 7f3c2a10-1b2c-4d5e-8f90-123456789abc",
+            "Players.bob_99.PlayerGui.ShopUI.Buy:18: attempt to perform arithmetic on nil",
+        ]
+        func count(_ message: Int, _ source: String, _ version: Int, _ count: Int, from: Date) -> ErrorCount {
+            ErrorCount(signature: ErrorClusterer.signature(messages[message]), example: ErrorClusterer.redacted(messages[message]),
+                       source: source, placeVersion: version, count: count, firstSeen: from, lastSeen: now.addingTimeInterval(-20 * 60))
+        }
+        return ErrorClusterer.cluster(counts: [
+            count(0, "server", 128, 1_840, from: update.addingTimeInterval(40 * 60)),
+            count(1, "server", 127, 160, from: now.addingTimeInterval(-6 * 86_400)),
+            count(1, "server", 128, 210, from: update),
+            count(2, "client", 127, 90, from: now.addingTimeInterval(-6 * 86_400)),
+            count(2, "client", 128, 75, from: update),
+        ])
+    }
+
     static func briefing(now: Date) -> Briefing {
         let games = games(now: now)
         let favourites = games.filter(\.isFavourite)
@@ -182,5 +204,17 @@ public actor DemoInsightService: InsightService {
         try check()
         guard mode == .normal, gameID == SampleData.attackAnimalsID else { return nil }
         return SampleData.updateImpact(now: now())
+    }
+
+    public func errors(gameID: Int64) async throws -> [ErrorCluster] {
+        try check()
+        return mode == .normal ? SampleData.errorClusters(gameID: gameID, now: now()) : []
+    }
+
+    /// A clearly fake key: demo mode never talks to a server.
+    public func createErrorKey(gameID: Int64) async throws -> BackendAPI.ErrorReportSetup {
+        try check()
+        return BackendAPI.ErrorReportSetup(key: "pk_ik_demo_not_a_real_key", secretName: ErrorReporterScripts.secretName,
+                                           endpoint: URL(string: "https://peak.example.com/v1/ingest/errors")!)
     }
 }

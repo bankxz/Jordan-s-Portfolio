@@ -209,3 +209,23 @@ public struct FunnelSnapshot: Sendable, Hashable, Codable {
         self.steps = steps
     }
 }
+
+/// A game's error-report key (decision 0008). Only the SHA-256 of the key is stored.
+public struct IngestKeyRecord: Sendable, Hashable {
+    public var userID: UUID
+    public var universeID: Int64
+
+    public init(userID: UUID, universeID: Int64) {
+        self.userID = userID
+        self.universeID = universeID
+    }
+}
+
+public enum ErrorReportLimits {
+    /// Distinct error signatures kept per game per UTC day; more are dropped, so a flood of junk can't grow storage.
+    public static let signaturesPerDay = 500
+    /// Highest count accepted for one entry in one report.
+    public static let maxEntryCount = 10_000
+    /// Error counts are kept for 30 days.
+    public static let retention: TimeInterval = 30 * 86_400
+}

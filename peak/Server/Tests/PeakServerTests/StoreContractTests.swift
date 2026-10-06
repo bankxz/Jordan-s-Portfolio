@@ -53,7 +53,8 @@ struct StoreContractTests {
     func oauthAttemptIsSingleUseUnderConcurrency(factory: StoreFactory) async throws {
         guard let store = try await factory.make() else { return }
         let state = "state-\(UUID())"
-        try await store.saveOAuthAttempt(OAuthAttempt(state: state, codeVerifier: "v", createdAt: t0))
+        // A year after t0: expiredAttemptsAreDeleted runs in parallel and deletes attempts from around t0.
+        try await store.saveOAuthAttempt(OAuthAttempt(state: state, codeVerifier: "v", createdAt: t0.addingTimeInterval(365 * 86_400)))
         let winners = try await withThrowingTaskGroup(of: Bool.self) { group in
             for _ in 0..<25 { group.addTask { try await store.consumeOAuthAttempt(state: state) != nil } }
             return try await group.reduce(0) { $0 + ($1 ? 1 : 0) }

@@ -86,6 +86,8 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
     public var statsPollInterval: Duration
     public var revenuePollInterval: Duration
     public var ai: AI?
+    /// The address games reach this server on (error reports, decision 0008). Must be https.
+    public var publicBaseURL: URL?
 
     public init(
         host: String = "0.0.0.0",
@@ -97,7 +99,8 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
         apns: APNs? = nil,
         statsPollInterval: Duration = .seconds(60),
         revenuePollInterval: Duration = .seconds(15 * 60),
-        ai: AI? = nil
+        ai: AI? = nil,
+        publicBaseURL: URL? = nil
     ) {
         self.host = host
         self.port = port
@@ -109,6 +112,7 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
         self.statsPollInterval = statsPollInterval
         self.revenuePollInterval = revenuePollInterval
         self.ai = ai
+        self.publicBaseURL = publicBaseURL
     }
 
     public enum ConfigError: Error, CustomStringConvertible, Equatable {
@@ -181,6 +185,21 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
                     monthlyBudgetUSD: try positive("PEAK_AI_MONTHLY_BUDGET_USD", default: 25))
         }
 
+        // Games call this address, so it must be https. Defaults to the origin of the OAuth redirect.
+        let publicBase: URL?
+        if let raw = env["PUBLIC_BASE_URL"], raw.isEmpty == false {
+            let parsed = try url("PUBLIC_BASE_URL", raw)
+            guard parsed.scheme == "https" else { throw ConfigError.invalid("PUBLIC_BASE_URL", reason: "must be https") }
+            publicBase = parsed
+        } else if redirect.scheme == "https", var origin = URLComponents(url: redirect, resolvingAgainstBaseURL: false) {
+            origin.path = "/"
+            origin.query = nil
+            origin.fragment = nil
+            publicBase = origin.url
+        } else {
+            publicBase = nil
+        }
+
         return ServerConfig(
             host: env["HOST"] ?? "0.0.0.0",
             port: port,
@@ -191,7 +210,8 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
             tokenEncryptionKey: key,
             databaseURL: env["DATABASE_URL"].flatMap { $0.isEmpty ? nil : $0 },
             apns: apns,
-            ai: ai
+            ai: ai,
+            publicBaseURL: publicBase
         )
     }
 
@@ -199,6 +219,7 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
         "ServerConfig(host: \(host), port: \(port), robloxClientID: \(roblox.clientID), redirect: \(roblox.redirectURI), "
             + "secret: <redacted>, encryptionKey: <redacted>, database: \(databaseURL == nil ? "in-memory" : "postgres"), "
             + "apns: \(apns == nil ? "disabled" : "enabled"), "
+            + "publicBaseURL: \(publicBaseURL?.absoluteString ?? "none (error reports off)"), "
             + "ai: \(ai.map { "\($0.model), key: <redacted>, budget: $\($0.monthlyBudgetUSD)/month" } ?? "disabled"))"
     }
 }

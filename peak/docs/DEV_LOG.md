@@ -228,3 +228,38 @@ anyone.
 - Verified locally: 125 server tests (in memory and on Postgres, migrations 1–6), 160 PeakKit tests.
 - Not verified: real APNs delivery (needs an Apple key and a device). The system permission dialog isn't
   exercised in UI tests.
+- **Correction (CI run 37436023399):** the app crashed at launch, and every app and UI test failed. The cause was
+  `getNotificationSettings`: its completion handler runs on a background queue, and inside the `@MainActor`
+  controller the closure was main-actor isolated, so Swift 6's runtime check trapped. Fixed in cc86f99 with a
+  `nonisolated` helper. Linux builds can't catch this; only the simulator job does.
+
+## 2026-10-06 — Slice 9: Error reports from the game (V1 #8, the error-log summariser)
+
+Skills: roblox-security (the client is compromised, no secrets in client code, rate-limit remotes),
+roblox-networking (validate type and size, per-player throttles), roblox-cloud (Secrets, HttpService),
+swiftui-ui-patterns (`.sheet(item:)`, explicit load states), guide-swift-testing.
+Reason: the beta server-logs API needs a new scope and only sees server errors (decision 0008).
+- `Roblox/PeakErrorReporter.server.luau` and `.client.luau`. The app shows the same text; a PeakKit test checks
+  they match.
+- PeakKit:
+  - `ErrorCount` and `ErrorClusterer.cluster(counts:)`.
+  - `redacted` examples that keep line numbers.
+  - The cluster summary and location.
+  - A Claude prompt for an error.
+  - Service methods and demo data.
+- Server:
+  - Ingest keys (hash only) and `POST /v1/ingest/errors` with a per-key limit.
+  - A 15 s write buffer, the daily signature cap and 30-day retention (Postgres migration v7).
+  - `GET /v1/games/{id}/errors` and the Ask tool `get_errors`.
+  - `PUBLIC_BASE_URL`.
+- App: an errors card on game detail ("New in v128", a Claude prompt per error) and a setup sheet. The setup
+  sheet creates the key on a tap, never automatically, because a new key stops the old one. The key is copied
+  local-only and expires from the clipboard after 10 minutes.
+- Also fixed two Postgres test races, where one test's delete removed rows another test was using.
+- Verified locally: 168 PeakKit tests, and 135 server tests in memory and on Postgres 16 (migrations 1–7),
+  run twice.
+- Luau: both scripts compile with `luau-compile`. `Roblox/run-tests.sh` runs them against stubbed Roblox
+  services: 19 checks covering grouping, player-name scrubbing, the bearer header from the secret, per-player
+  client limits, the 100-pending cap, UTF-8-safe cutting, and a missing secret. It runs locally, not in CI
+  (no pinned Luau release yet).
+- Not verified: the scripts in a real Roblox game, and Roblox Secrets end to end.

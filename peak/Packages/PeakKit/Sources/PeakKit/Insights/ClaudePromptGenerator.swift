@@ -86,6 +86,27 @@ public enum ClaudePromptGenerator {
             tests: report.metrics.filter { $0.verdict == .harmed }.flatMap { tests(for: $0.metric) }.uniqued())
     }
 
+    public static func prompt(for cluster: ErrorCluster, gameName: String, files: [String] = []) -> DevPrompt {
+        let short = cluster.signature.count > 80 ? String(cluster.signature.prefix(79)) + "\u{2026}" : cluster.signature
+        let searches = cluster.location.map { ["Open \($0.script) at line \($0.line)"] }
+            ?? ["Search for the text of the error: \u{201C}\(cluster.example)\u{201D}"]
+        var tests = ["Reproduce the error in Studio first, then confirm it no longer appears in the Output window after the fix."]
+        if cluster.sources.contains("client") {
+            tests.append("Test on a phone-sized device in Studio as well as desktop: this error happens on players' devices.")
+        }
+        return DevPrompt(
+            title: "Fix the error \u{201C}\(short)\u{201D}",
+            gameName: gameName,
+            measured: [cluster.summary, "Example (player names, IDs and values removed): \(cluster.example)"],
+            possibleCauses: cluster.isNewInLatestVersion
+                ? ["It only appears in v\(cluster.versions.last ?? 0), so a change in that update may have introduced it."] : [],
+            steps: ["Find the line from the example and explain why it errors.",
+                    "Fix why the value is wrong, not just the symptom: a nil check alone can hide a real bug.",
+                    "Make the smallest change that fixes it."],
+            filesOrSearches: files.isEmpty ? searches : files,
+            tests: tests)
+    }
+
     /// Markdown ready to paste into Claude.
     public static func render(_ prompt: DevPrompt) -> String {
         var lines = ["# \(prompt.title)", "", "## Context",

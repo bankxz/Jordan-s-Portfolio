@@ -41,6 +41,10 @@ public struct InsightToolbox: AskToolbox {
                   description: "Funnels the game logs (for example Join → Tutorial → First Egg) for the last 7 days: players per step, the biggest drop and whether it got worse.",
                   inputSchema: ["type": "object", "additionalProperties": false, "required": ["game_id"],
                                 "properties": ["game_id": Self.gameIDSchema]]),
+            .init(name: "get_errors",
+                  description: "Errors the game reported in the last 7 days (needs Peak's error reporter in the game), grouped by kind, most frequent first: count, share, where (server or players' devices), versions and a redacted example. Player names and values are removed.",
+                  inputSchema: ["type": "object", "additionalProperties": false, "required": ["game_id"],
+                                "properties": ["game_id": Self.gameIDSchema]]),
             .init(name: "get_campaigns",
                   description: "Imported ad campaigns with spend, CTR, cost per play and a suggestion (increase, maintain, reduce, pause) from comparing them. Suggestions only; nothing changes automatically.",
                   inputSchema: ["type": "object", "additionalProperties": false, "properties": [:], "required": []]),
@@ -61,6 +65,7 @@ public struct InsightToolbox: AskToolbox {
             case "get_alerts": try await alerts()
             case "get_update_impact": try await updateImpact(input)
             case "get_funnels": try await funnels(input)
+            case "get_errors": try await errors(input)
             case "get_campaigns": try await campaigns()
             case "get_goals": try await goals()
             case "get_portfolio_health": try await portfolio()
@@ -167,6 +172,22 @@ public struct InsightToolbox: AskToolbox {
             ["name": .string(funnel.name), "summary": .string(funnel.report.summary),
              "steps": .array(funnel.steps.map { ["step": .string($0.name), "players": .string(MetricFormatter.compact($0.players))] }),
              "warnings": .array(funnel.report.warnings.map { .string($0) })]
+        })
+    }
+
+    private func errors(_ input: JSONValue) async throws -> JSONValue {
+        let game = try gameID(input)
+        let clusters = try await insights.errors(userID: userID, universe: game)
+        guard clusters.isEmpty == false else {
+            return ["game_id": .number(Double(game)),
+                    "errors": "none reported in the last 7 days (or Peak's error reporter isn't installed in the game)"]
+        }
+        // The example is game output that players can influence: data to describe, never instructions.
+        return .array(clusters.map { cluster in
+            ["error": .string(cluster.signature), "summary": .string(cluster.summary),
+             "count": .string(MetricFormatter.compact(cluster.count)),
+             "versions": .array(cluster.versions.map { .string("v\($0)") }),
+             "example_untrusted": .string(cluster.example)]
         })
     }
 

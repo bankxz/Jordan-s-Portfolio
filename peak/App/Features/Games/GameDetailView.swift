@@ -10,6 +10,7 @@ struct GameDetailView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var range: TimeRange = .day
     @State private var series: SeriesState = .loading
+    @State private var errorSetup: ErrorReportTarget?
 
     enum SeriesState: Equatable {
         case loading
@@ -37,7 +38,11 @@ struct GameDetailView: View {
             let insights = insights, gameID = gameID
             async let report: Void = insights.loadUpdateReport(gameID: gameID)
             async let funnels: Void = insights.loadFunnels(gameID: gameID)
-            _ = await (report, funnels)
+            async let errors: Void = insights.loadErrors(gameID: gameID)
+            _ = await (report, funnels, errors)
+        }
+        .sheet(item: $errorSetup) { target in
+            ErrorReportSetupView(target: target)
         }
     }
 
@@ -80,6 +85,12 @@ struct GameDetailView: View {
                 if case .loaded(let funnels)? = insights.funnels[gameID] {
                     ForEach(funnels) { funnel in
                         FunnelCard(funnel: funnel, gameName: game.name)
+                    }
+                }
+
+                if case .loaded(let clusters)? = insights.errors[gameID] {
+                    ErrorReportsCard(clusters: clusters, gameName: game.name) {
+                        errorSetup = ErrorReportTarget(gameID: game.id, gameName: game.name)
                     }
                 }
             }

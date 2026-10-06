@@ -64,6 +64,13 @@ public struct InsightBuilder: Sendable {
             .map { NamedFunnel(name: $0.funnelName, steps: $0.steps, periodEnd: $0.periodEnd) }
     }
 
+    /// Errors the game reported in the last 7 days, grouped, most frequent first (decision 0008).
+    public func errors(userID: UUID, universe: Int64, limit: Int = 10) async throws -> [ErrorCluster] {
+        try await dashboard.requireOwnership(userID: userID, universeID: universe)
+        let counts = try await store.errorCounts(universeID: universe, since: now().addingTimeInterval(-7 * 86_400))
+        return ErrorClusterer.cluster(counts: counts, limit: limit)
+    }
+
     /// Mean of each metric over the half hour before `at - lag`, for each lag. Sparse on purpose: a handful of
     /// small queries instead of a month of minute samples.
     func lagPoints(universe: Int64, metric: Metric, at time: Date) async throws -> [MetricPoint] {

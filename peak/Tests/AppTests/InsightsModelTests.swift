@@ -72,6 +72,24 @@ struct InsightsModelTests {
         #expect(model.funnels[SampleData.obbyRushID]?.value?.isEmpty == true)
     }
 
+    @Test func errorsLoadPerGameAndKeysComeBackOnce() async throws {
+        let model = makeModel()
+        await model.loadErrors(gameID: SampleData.attackAnimalsID)
+        await model.loadErrors(gameID: SampleData.obbyRushID)
+        let clusters = try #require(model.errors[SampleData.attackAnimalsID]?.value)
+        #expect(clusters.first?.isNewInLatestVersion == true)
+        #expect(model.errors[SampleData.obbyRushID]?.value?.isEmpty == true)
+        let setup = try #require(await model.createErrorKey(gameID: SampleData.attackAnimalsID).value)
+        #expect(setup.secretName == ErrorReporterScripts.secretName)
+
+        let failing = makeModel(.failing)
+        await failing.loadErrors(gameID: SampleData.attackAnimalsID)
+        guard case .failed = failing.errors[SampleData.attackAnimalsID] else { Issue.record("expected failure"); return }
+        guard case .failed = await failing.createErrorKey(gameID: SampleData.attackAnimalsID) else {
+            Issue.record("expected failure"); return
+        }
+    }
+
     @Test func askErrorMessages() {
         #expect(InsightsModel.askMessage(for: APIError.forbidden) == "Turn on AI features to ask questions.")
         #expect(InsightsModel.askMessage(for: APIError.rateLimited(retryAfter: 60))

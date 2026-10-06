@@ -49,7 +49,7 @@ Lifetimes: OAuth attempt 10 min · session code 2 min, single use · access toke
 | GET | `/v1/games/{universeId}/series?metric=ccu\|visits\|favourites\|robux&range=24h\|7d\|30d` | — | `MetricSeries` (≤ 300 points) |
 | PUT | `/v1/games/{universeId}/favourite` | `{ "value": true }` | `204` |
 | PUT | `/v1/games/{universeId}/working-on` | `{ "value": true }` | `204` |
-| POST | `/v1/devices` | `{ "apnsToken": "<hex>", "sandbox": false }` | `204` | `timeZone` (optional IANA ID) schedules the morning briefing; unknown IDs are dropped.
+| POST | `/v1/devices` | `{ "apnsToken": "<hex>", "sandbox": false, "timeZone": "Europe/London" }` (`timeZone` optional; unknown IDs are dropped; schedules the 8:00 briefing) | `204` |
 | GET | `/v1/alerts/rules` | — | `[AlertRule]` |
 | PUT | `/v1/alerts/rules/{id}` | `AlertRule` (id must match) | `AlertRule` |
 | DELETE | `/v1/alerts/rules/{id}` | — | `204` |
@@ -118,6 +118,7 @@ number check (`NumberGrounding`): otherwise the template text is returned.
 | GET | `/v1/insights/portfolio` | — | `[GameHealth]` ranked |
 | GET | `/v1/games/{universeId}/update-impact` | — | `UpdateImpactReport` for the latest update in 30 days; `404` when none |
 | GET | `/v1/games/{universeId}/funnels` | — | `[NamedFunnel]`: funnels the game logs, last 7 days, with the step to fix first; `[]` when it logs none |
+| GET | `/v1/games/{universeId}/errors` | — | `[ErrorCluster]`: errors the game reported in the last 7 days, grouped, most frequent first (≤ 10); `[]` when none |
 
 Sources: CCU and revenue samples; update times from the public games API `updated` field (stored as
 timeline events, so edits to the experience's settings also count); daily Analytics every 6 hours with
@@ -129,6 +130,22 @@ as percentages and divided by 100 (to confirm against real data).
 
 Ask runs a read-only tool loop (`list_games`, `get_metric_history`, `get_alerts`, `get_update_impact`,
 `get_funnels`, `get_goals`, `get_portfolio_health`), all scoped to the caller's universes: at most 6 rounds and 8 tool calls.
+
+## Error reports from the game (decision 0008)
+
+The creator installs `Roblox/PeakErrorReporter.*.luau`. The game server sends grouped errors with a per-game
+ingest key, stored as the Roblox Secret `peak_ingest`.
+
+| Method | Path | Auth | Body | Response |
+|---|---|---|---|---|
+| POST | `/v1/games/{universeId}/error-key` | ✓ | — | `ErrorReportSetup` (`key`, `secretName`, `endpoint`). The key (`pk_ik_…`) is returned only this once and replaces the user's previous key for the game. `404` for games the user doesn't own; `503 error_reports_unavailable` when the server has no public https address. |
+| POST | `/v1/ingest/errors` | `Bearer pk_ik_…` (ingest key, no session) | `IngestErrors`: `{ "placeVersion": 128, "errors": [{ "message": "…", "count": 3, "source": "server"\|"client" }] }` | `202`. `401` for unknown keys or when the key's owner no longer has the game; `400 too_many_errors` (> 100), `invalid_error` (count outside 1–10,000, blank message, unknown source), `invalid_place_version`, `body_too_large` (> 128 KB); `429` above 2,000 reports a minute per key. |
+
+Ingest rules:
+- Messages over 500 characters are cut.
+- Only the normalised signature and a redacted example are stored. The redacted example has no player names, IDs, quoted values or numbers, except script line numbers.
+- Reports are buffered and written every 15 s.
+- Each game keeps at most 500 distinct signatures per UTC day, and counts are kept for 30 days.
 
 ## Not yet implemented
 

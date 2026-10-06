@@ -14,9 +14,16 @@ public struct ServerDependencies: Sendable {
     /// `nil` → AI wording off (deterministic insights still served).
     public var claude: (any ClaudeAPI)?
     public var aiSettings: AIService.Settings?
+    /// The server's public address, used for the error-report endpoint the app shows. `nil` → error reports off.
+    public var publicBaseURL: URL?
+    public var errorReports: ErrorIngestBuffer
+    /// Error reports per ingest key per minute. Each game server sends one a minute, so this is roughly the
+    /// number of servers a game can run before reports are dropped.
+    public var ingestRateLimit: Int
 
     public init(store: any Store, oauth: any RobloxOAuth, box: SecretBox, appCallbackURL: URL,
                 authRateLimit: Int = 30, claude: (any ClaudeAPI)? = nil, aiSettings: AIService.Settings? = nil,
+                publicBaseURL: URL? = nil, errorReports: ErrorIngestBuffer = ErrorIngestBuffer(), ingestRateLimit: Int = 2_000,
                 now: @escaping @Sendable () -> Date = { Date() }) {
         self.store = store
         self.oauth = oauth
@@ -25,6 +32,9 @@ public struct ServerDependencies: Sendable {
         self.authRateLimit = authRateLimit
         self.claude = claude
         self.aiSettings = aiSettings
+        self.publicBaseURL = publicBaseURL
+        self.errorReports = errorReports
+        self.ingestRateLimit = ingestRateLimit
         self.now = now
     }
 }
@@ -47,9 +57,15 @@ public enum PeakServerApp {
         DataRoutes(builder: dashboard, store: deps.store, now: deps.now).add(to: authenticated)
         let ai = AIService(store: deps.store, claude: deps.aiSettings == nil ? nil : deps.claude,
                            settings: deps.claude == nil ? nil : deps.aiSettings, now: deps.now)
-        InsightRoutes(insights: InsightBuilder(store: deps.store, dashboard: dashboard, now: deps.now),
-                      dashboard: dashboard, ai: ai, cache: NarrationCache(), now: deps.now)
+        let insights = InsightBuilder(store: deps.store, dashboard: dashboard, now: deps.now)
+        InsightRoutes(insights: insights, dashboard: dashboard, ai: ai, cache: NarrationCache(), now: deps.now)
             .add(to: authenticated)
+        let errorReports = ErrorReportRoutes(store: deps.store, dashboard: dashboard, insights: insights, buffer: deps.errorReports,
+                                             publicBaseURL: deps.publicBaseURL,
+                                             limiter: RateLimiter(limit: deps.ingestRateLimit, window: 60, now: deps.now),
+                                             now: deps.now)
+        errorReports.addAuthenticated(to: authenticated)
+        errorReports.addPublic(to: router)
         return router
     }
 
@@ -81,7 +97,8 @@ public enum PeakServerApp {
             box: try SecretBox(key: config.tokenEncryptionKey),
             appCallbackURL: config.appCallbackURL,
             claude: claude,
-            aiSettings: config.ai.map(AIService.Settings.init)
+            aiSettings: config.ai.map(AIService.Settings.init),
+            publicBaseURL: config.publicBaseURL
         )
 
         let push: any PushSender = try config.apns.map { try APNsSender(config: $0, http: http) } ?? DisabledPushSender()
@@ -116,7 +133,10 @@ public enum PeakServerApp {
             PeriodicService(name: "analytics", interval: .seconds(6 * 3_600), initialDelay: .seconds(90), logger: logger) { try await dailyAnalytics.tick(logger: $0) },
             PeriodicService(name: "digests", interval: .seconds(5 * 60), initialDelay: .seconds(120), logger: logger) { try await digestNotifier.tick(logger: $0) },
             // Every 15 minutes, so each time zone's 8:00 hour is caught (including half-hour zones).
-            PeriodicService(name: "briefings", interval: .seconds(15 * 60), initialDelay: .seconds(150), logger: logger) { try await briefingNotifier.tick(logger: $0) }
+            PeriodicService(name: "briefings", interval: .seconds(15 * 60), initialDelay: .seconds(150), logger: logger) { try await briefingNotifier.tick(logger: $0) },
+            PeriodicService(name: "error-reports", interval: .seconds(15), initialDelay: .seconds(15), logger: logger) { _ in
+                _ = try await deps.errorReports.flush(into: store, now: deps.now())
+            }
         )
         try await app.runService()
     }

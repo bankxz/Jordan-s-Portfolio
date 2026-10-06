@@ -212,6 +212,32 @@ public struct PostgresStore: Store {
             """,
         ]),
         (6, ["ALTER TABLE devices ADD COLUMN time_zone TEXT"]),
+        (7, [
+            """
+            CREATE TABLE ingest_keys (
+                key_hash TEXT PRIMARY KEY,
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                universe_id BIGINT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                UNIQUE (user_id, universe_id))
+            """,
+            // Game data, not user data: redacted signatures only (no player names), kept 30 days.
+            // place_version -1 = unknown.
+            """
+            CREATE TABLE error_counts (
+                universe_id BIGINT NOT NULL,
+                day TIMESTAMPTZ NOT NULL,
+                signature TEXT NOT NULL,
+                place_version BIGINT NOT NULL,
+                source TEXT NOT NULL,
+                example TEXT NOT NULL,
+                count BIGINT NOT NULL,
+                first_seen TIMESTAMPTZ NOT NULL,
+                last_seen TIMESTAMPTZ NOT NULL,
+                PRIMARY KEY (universe_id, day, signature, place_version, source))
+            """,
+            "CREATE INDEX error_counts_day_idx ON error_counts (day)",
+        ]),
     ]
 
     /// Applies pending migrations under an advisory lock, so several instances starting at once are safe.
@@ -730,6 +756,67 @@ public struct PostgresStore: Store {
         var result: [Campaign] = []
         for try await body in rows.decode(String.self) { result.append(try Self.decode(Campaign.self, body)) }
         return result.sorted { $0.name < $1.name }
+    }
+
+    // MARK: Error reports
+
+    public func saveIngestKey(hash: String, userID: UUID, universeID: Int64, createdAt: Date) async throws {
+        try await client.query("""
+            INSERT INTO ingest_keys (key_hash, user_id, universe_id, created_at)
+            VALUES (\(hash), \(userID), \(universeID), \(createdAt))
+            ON CONFLICT (user_id, universe_id) DO UPDATE SET key_hash = EXCLUDED.key_hash, created_at = EXCLUDED.created_at
+            """, logger: logger)
+    }
+
+    public func ingestKey(hash: String) async throws -> IngestKeyRecord? {
+        let rows = try await client.query("SELECT user_id, universe_id FROM ingest_keys WHERE key_hash = \(hash)", logger: logger)
+        for try await (userID, universeID) in rows.decode((UUID, Int64).self) {
+            return IngestKeyRecord(userID: userID, universeID: universeID)
+        }
+        return nil
+    }
+
+    public func addErrorCounts(universeID: Int64, day: Date, counts: [ErrorCount]) async throws {
+        let limit = ErrorReportLimits.signaturesPerDay
+        for count in counts {
+            let version = Int64(count.placeVersion ?? -1)
+            let total = Int64(count.count)
+            // The cap check and the insert are one statement. Concurrent writers can overshoot the cap slightly; that's fine.
+            try await client.query("""
+                INSERT INTO error_counts (universe_id, day, signature, place_version, source, example, count, first_seen, last_seen)
+                SELECT \(universeID), \(day), \(count.signature), \(version), \(count.source), \(count.example), \(total),
+                       \(count.firstSeen), \(count.lastSeen)
+                WHERE EXISTS (SELECT 1 FROM error_counts
+                              WHERE universe_id = \(universeID) AND day = \(day) AND signature = \(count.signature))
+                   OR (SELECT COUNT(DISTINCT signature) FROM error_counts
+                       WHERE universe_id = \(universeID) AND day = \(day)) < \(limit)
+                ON CONFLICT (universe_id, day, signature, place_version, source) DO UPDATE SET
+                    count = error_counts.count + EXCLUDED.count,
+                    example = EXCLUDED.example,
+                    first_seen = LEAST(error_counts.first_seen, EXCLUDED.first_seen),
+                    last_seen = GREATEST(error_counts.last_seen, EXCLUDED.last_seen)
+                """, logger: logger)
+        }
+    }
+
+    public func errorCounts(universeID: Int64, since: Date) async throws -> [ErrorCount] {
+        let rows = try await client.query("""
+            SELECT signature, example, source, place_version, count, first_seen, last_seen FROM error_counts
+            WHERE universe_id = \(universeID) AND last_seen >= \(since)
+            ORDER BY signature, last_seen
+            """, logger: logger)
+        var result: [ErrorCount] = []
+        for try await (signature, example, source, version, count, first, last)
+            in rows.decode((String, String, String, Int64, Int64, Date, Date).self) {
+            result.append(ErrorCount(signature: signature, example: example, source: source,
+                                     placeVersion: version < 0 ? nil : Int(version), count: Int(clamping: count),
+                                     firstSeen: first, lastSeen: last))
+        }
+        return result
+    }
+
+    public func deleteErrorCounts(before: Date) async throws {
+        try await client.query("DELETE FROM error_counts WHERE day < \(before)", logger: logger)
     }
 
     // MARK: Digest pushes

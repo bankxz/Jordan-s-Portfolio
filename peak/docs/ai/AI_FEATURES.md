@@ -96,7 +96,7 @@ Data sources used below:
 
 | # | Feature | Data | Status |
 |---|---|---|---|
-| 23 | Error-log summariser | server logs ✅ (beta) + crash metrics ✅; client errors only if the game forwards them | **V1** (server logs + crash metrics) |
+| 23 | Error-log summariser | Peak's in-game reporter (server and client errors, decision 0008) + crash metrics ✅. The beta server-logs API isn't used | **V1, built** (in-game reporter) |
 | 24 | Bug severity scoring | 23 + reports 📥 | later |
 | 25 | AI bug reproduction steps | 23 | later |
 | 26 | Performance advisor | performance metrics ✅ | later |
@@ -128,12 +128,11 @@ Data sources used below:
 ## Version 1
 
 Status 2026-10-06:
-- **Built:** 1–6, 8, 9, 10, plus retention and crash-rate alerts, using daily Analytics every 6 hours.
-- **Still open:**
-  - 8 in the app is built, but its server data needs the game to log funnels.
-  - Error logs: server logs ingestion (`universe:read`).
-  - Error logs: an in-game reporter instead of the beta server-logs API (see the dev log).
-  - Real Claude calls on staging.
+- **Built:** all ten, plus retention and crash-rate alerts, using daily Analytics every 6 hours.
+- **Needs something from the creator's game:**
+  - Funnels: the game must log funnel steps.
+  - Error reports: the game must have the reporter installed (two scripts and one Secret; the app walks through it).
+- **Still open:** real Claude calls, and real error reports from a live game, on staging.
 
 1. Daily AI briefing
 2. Ask your analytics
@@ -142,7 +141,7 @@ Status 2026-10-06:
 5. Goal planner
 6. Funnel drop-off detector
 7. Ad campaign analyst (campaigns from the API, performance from the Ads Manager CSV)
-8. Error-log summariser (server logs + crash metrics)
+8. Error-log summariser (Peak's in-game reporter + crash metrics)
 9. Portfolio health score
 10. Claude prompt generator
 

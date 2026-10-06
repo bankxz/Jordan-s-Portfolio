@@ -14,11 +14,16 @@ struct RouteHarness {
     var rateLimit = 1_000
     var claude: (any ClaudeAPI)?
     var aiSettings: AIService.Settings?
+    let errorReports = ErrorIngestBuffer()
+    var publicBaseURL: URL? = URL(string: "https://peak.example.test/")
+    var ingestRateLimit = 1_000
 
     var deps: ServerDependencies {
         ServerDependencies(store: store, oauth: oauth, box: TestKeys.box,
                            appCallbackURL: URL(string: "peakstats://auth/complete")!,
-                           authRateLimit: rateLimit, claude: claude, aiSettings: aiSettings, now: clock.function)
+                           authRateLimit: rateLimit, claude: claude, aiSettings: aiSettings,
+                           publicBaseURL: publicBaseURL, errorReports: errorReports, ingestRateLimit: ingestRateLimit,
+                           now: clock.function)
     }
 
     var app: some ApplicationProtocol {

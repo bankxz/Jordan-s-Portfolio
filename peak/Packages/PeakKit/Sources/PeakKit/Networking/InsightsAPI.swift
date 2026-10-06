@@ -96,6 +96,10 @@ public protocol InsightService: Sendable {
     /// `nil` when no update has been seen for the game.
     func updateImpact(gameID: Int64) async throws -> UpdateImpactReport?
     func funnels(gameID: Int64) async throws -> [NamedFunnel]
+    /// Errors the game reported in the last 7 days (decision 0008), most frequent first.
+    func errors(gameID: Int64) async throws -> [ErrorCluster]
+    /// Creates the game's ingest key, replacing any earlier one. The key is only returned this once.
+    func createErrorKey(gameID: Int64) async throws -> BackendAPI.ErrorReportSetup
 }
 
 public struct RemoteInsightService: InsightService {
@@ -114,6 +118,14 @@ public struct RemoteInsightService: InsightService {
 
     public func funnels(gameID: Int64) async throws -> [NamedFunnel] {
         try await client.send(BackendAPI.funnels(gameID: gameID))
+    }
+
+    public func errors(gameID: Int64) async throws -> [ErrorCluster] {
+        try await client.send(BackendAPI.errors(gameID: gameID))
+    }
+
+    public func createErrorKey(gameID: Int64) async throws -> BackendAPI.ErrorReportSetup {
+        try await client.send(BackendAPI.createErrorKey(gameID: gameID))
     }
 
     public func updateImpact(gameID: Int64) async throws -> UpdateImpactReport? {

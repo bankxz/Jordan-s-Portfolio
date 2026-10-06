@@ -24,9 +24,14 @@ public actor InMemoryStore: Store {
     private var digestPushes: [String: Date] = [:]
     private var campaigns: [UUID: [String: Campaign]] = [:]
     private var funnels: [FunnelKey: FunnelSnapshot] = [:]
+    private var ingestKeys: [String: (record: IngestKeyRecord, createdAt: Date)] = [:]
+    private var errorRows: [ErrorKey: ErrorCount] = [:]
 
     private struct InsightKey: Hashable { var universeID: Int64; var metric: InsightMetric; var time: Date }
     private struct FunnelKey: Hashable { var universeID: Int64; var name: String; var periodEnd: Date }
+    private struct ErrorKey: Hashable {
+        var universeID: Int64; var day: Date; var signature: String; var placeVersion: Int?; var source: String
+    }
 
     public init() {}
 
@@ -285,6 +290,43 @@ public actor InMemoryStore: Store {
         (campaigns[userID] ?? [:]).values.sorted { $0.name < $1.name }
     }
 
+    // MARK: Error reports
+
+    public func saveIngestKey(hash: String, userID: UUID, universeID: Int64, createdAt: Date) {
+        ingestKeys = ingestKeys.filter { $0.value.record != IngestKeyRecord(userID: userID, universeID: universeID) }
+        ingestKeys[hash] = (IngestKeyRecord(userID: userID, universeID: universeID), createdAt)
+    }
+
+    public func ingestKey(hash: String) -> IngestKeyRecord? { ingestKeys[hash]?.record }
+
+    public func addErrorCounts(universeID: Int64, day: Date, counts: [ErrorCount]) {
+        for count in counts {
+            let key = ErrorKey(universeID: universeID, day: day, signature: count.signature,
+                               placeVersion: count.placeVersion, source: count.source)
+            if var row = errorRows[key] {
+                row.count += count.count
+                row.example = count.example
+                row.firstSeen = min(row.firstSeen, count.firstSeen)
+                row.lastSeen = max(row.lastSeen, count.lastSeen)
+                errorRows[key] = row
+                continue
+            }
+            let today = errorRows.keys.filter { $0.universeID == universeID && $0.day == day }
+            guard today.contains(where: { $0.signature == count.signature })
+                || Set(today.map(\.signature)).count < ErrorReportLimits.signaturesPerDay else { continue }
+            errorRows[key] = count
+        }
+    }
+
+    public func errorCounts(universeID: Int64, since: Date) -> [ErrorCount] {
+        errorRows.filter { $0.key.universeID == universeID && $0.value.lastSeen >= since }.values
+            .sorted { ($0.signature, $0.lastSeen) < ($1.signature, $1.lastSeen) }
+    }
+
+    public func deleteErrorCounts(before: Date) {
+        errorRows = errorRows.filter { $0.key.day >= before }
+    }
+
     // MARK: Digest pushes
 
     public func claimDigestPush(userID: UUID, key: String, at: Date, cooldown: TimeInterval) -> Bool {
@@ -325,6 +367,7 @@ public actor InMemoryStore: Store {
         deviceRecords = deviceRecords.filter { $0.value.userID != id }
         consents[id] = nil
         campaigns[id] = nil
+        ingestKeys = ingestKeys.filter { $0.value.record.userID != id }
         digestPushes = digestPushes.filter { $0.key.hasPrefix("\(id)|") == false }
         // Spend stays counted, without the link to the deleted user.
         usage = usage.map { record in

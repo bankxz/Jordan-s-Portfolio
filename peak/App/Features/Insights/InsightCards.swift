@@ -339,3 +339,69 @@ struct FunnelCard: View {
         .accessibilityIdentifier("funnelCard")
     }
 }
+
+/// Errors the game reported through Peak's error reporter, grouped, with a Claude prompt for each.
+/// With no reports yet, it explains what the reporter does and offers setup.
+struct ErrorReportsCard: View {
+    let clusters: [ErrorCluster]
+    let gameName: String
+    let onSetUp: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Errors from your game", systemImage: "ladybug")
+                .font(.headline)
+            if clusters.isEmpty {
+                Text("Add Peak's error reporter to your game and Peak groups its errors here, including ones on players' devices, and says which update they started in.")
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(clusters.prefix(3)) { cluster in
+                    row(cluster)
+                    if cluster.id != clusters.prefix(3).last?.id { Divider() }
+                }
+                Text("Last 7 days. Player names and values are removed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Button(setupTitle, systemImage: "wrench.and.screwdriver") {
+                onSetUp()
+            }
+            .font(.footnote.weight(.medium))
+            .frame(minHeight: 44)
+            .accessibilityIdentifier("errorReportSetupButton")
+        }
+        .card()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("errorReportsCard")
+    }
+
+    private var setupTitle: String { clusters.isEmpty ? "Set up error reports" : "Reporter setup" }
+
+    private func row(_ cluster: ErrorCluster) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if cluster.isNewInLatestVersion, let version = cluster.versions.last {
+                Text("New in v\(version)")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.15), in: Capsule())
+                    .foregroundStyle(.orange)
+            }
+            Text(cluster.example)
+                .font(.footnote.monospaced())
+                .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(cluster.summary)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            ShareLink(item: ClaudePromptGenerator.render(ClaudePromptGenerator.prompt(for: cluster, gameName: gameName)),
+                      preview: SharePreview("Claude prompt for this error")) {
+                Label("Claude prompt", systemImage: "square.and.arrow.up")
+                    .font(.footnote.weight(.medium))
+                    .frame(minHeight: 44)
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+}

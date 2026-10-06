@@ -27,6 +27,7 @@ Tests/        Swift Testing: contract suite (memory + Postgres), auth, routes, w
 | `DATABASE_URL` | prod | `postgres://user:pass@host:5432/db?sslmode=require`. Unset → in-memory (dev only). |
 | `APP_CALLBACK_URL` | | Default `peakstats://auth/complete` |
 | `APNS_PRIVATE_KEY`, `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_BUNDLE_ID` | | `.p8` contents (newlines may be `\n`). Unset → pushes disabled. |
+| `PUBLIC_BASE_URL` | | https address games reach this server on, for error reports (decision 0008). Default: the origin of `ROBLOX_REDIRECT_URI` when that is https. Without one, error-report keys can't be created. |
 | `PORT`, `HOST`, `LOG_LEVEL` | | Defaults `8080`, `0.0.0.0`, `info` |
 | `ANTHROPIC_API_KEY` | | Claude API key from platform.claude.com (separate from a Claude subscription). Unset → AI wording off; deterministic insights still work. |
 | `PEAK_AI_MODEL` | | Default `claude-opus-5-5`. Cheaper: `claude-sonnet-5-5` ($2/$10 per M tokens) or `claude-haiku-4-5` ($1/$5). |

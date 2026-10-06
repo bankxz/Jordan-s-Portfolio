@@ -43,6 +43,7 @@ final class InsightsModel {
     private(set) var settingsError: String?
     private(set) var updateReports: [Int64: Load<UpdateImpactReport?>] = [:]
     private(set) var funnels: [Int64: Load<[NamedFunnel]>] = [:]
+    private(set) var errors: [Int64: Load<[ErrorCluster]>] = [:]
     private(set) var conversation: [Exchange] = []
     private(set) var isChangingConsent = false
 
@@ -122,6 +123,30 @@ final class InsightsModel {
         } catch is CancellationError {
         } catch {
             if funnels[gameID]?.value == nil { funnels[gameID] = .failed(Self.message(for: error)) }
+        }
+    }
+
+    func loadErrors(gameID: Int64) async {
+        if errors[gameID]?.value == nil { errors[gameID] = .loading }
+        do {
+            errors[gameID] = .loaded(try await service.errors(gameID: gameID))
+        } catch is CancellationError {
+        } catch {
+            if errors[gameID]?.value == nil { errors[gameID] = .failed(Self.message(for: error)) }
+        }
+    }
+
+    /// Creates the game's error-report key. It replaces the previous key, so the game must get the new one.
+    func createErrorKey(gameID: Int64) async -> Load<BackendAPI.ErrorReportSetup> {
+        do {
+            return .loaded(try await service.createErrorKey(gameID: gameID))
+        } catch is CancellationError {
+            return .idle
+        } catch {
+            if case .server(status: 503)? = error as? APIError {
+                return .failed("Error reports aren't set up on Peak's server yet.")
+            }
+            return .failed(Self.message(for: error))
         }
     }
 

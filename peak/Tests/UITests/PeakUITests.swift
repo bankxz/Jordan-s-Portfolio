@@ -93,8 +93,14 @@ final class PeakUITests: XCTestCase {
         screenshot(app, "ads-light")
 
         app.tabBars.buttons["Alerts"].tap()
-        XCTAssertTrue(element(app, "alertsRecentHeader").waitForExistence(timeout: 5))
+        // The notifications prompt and unusual changes come first, so Recent starts below the fold (List is lazy).
+        XCTAssertTrue(app.navigationBars["Alerts"].waitForExistence(timeout: 5))
         screenshot(app, "alerts-light")
+        let recent = element(app, "alertsRecentHeader")
+        for _ in 0..<6 where recent.exists == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(recent.waitForExistence(timeout: 5))
     }
 
     @MainActor
@@ -235,6 +241,33 @@ final class PeakUITests: XCTestCase {
         }
         XCTAssertTrue(funnel.waitForExistence(timeout: 10))
         screenshot(app, "game-funnel")
+    }
+
+    @MainActor
+    func testErrorReportsAndSetup() {
+        let app = launch()
+        app.tabBars.buttons["Games"].tap()
+        let row = element(app, "gameRow.\(attackAnimals)")
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
+        row.tap()
+        let card = element(app, "errorReportsCard")
+        for _ in 0..<6 where card.exists == false || card.isHittable == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["New in v128"].exists)
+        screenshot(app, "game-errors")
+
+        let setup = element(app, "errorReportSetupButton")
+        for _ in 0..<3 where setup.isHittable == false {
+            app.swipeUp()
+        }
+        setup.tap()
+        let create = element(app, "createErrorKeyButton")
+        XCTAssertTrue(create.waitForExistence(timeout: 5))
+        create.tap()
+        XCTAssertTrue(element(app, "errorKeyText").waitForExistence(timeout: 5))
+        screenshot(app, "error-report-setup")
     }
 
     @MainActor
