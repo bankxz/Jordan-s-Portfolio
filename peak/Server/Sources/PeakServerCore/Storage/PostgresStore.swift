@@ -18,7 +18,8 @@ public struct PostgresStore: Store {
 
     // MARK: Configuration
 
-    /// Parses `postgres://user:password@host:port/database?sslmode=disable|prefer|require`.
+    /// Parses `postgres://user:password@host:port/database?sslmode=disable|prefer|require|verify-full`.
+    /// `require` and `verify-full` verify the server certificate; `prefer` (the default) doesn't.
     public static func configuration(url string: String) throws -> PostgresClient.Configuration {
         guard let components = URLComponents(string: string),
               ["postgres", "postgresql"].contains(components.scheme ?? ""),
@@ -31,7 +32,13 @@ public struct PostgresStore: Store {
         switch components.queryItems?.first(where: { $0.name == "sslmode" })?.value ?? "prefer" {
         case "disable": tls = .disable
         case "require", "verify-full": tls = .require(.makeClientConfiguration())
-        default: tls = .prefer(.makeClientConfiguration())
+        default:
+            // Like libpq's "prefer": encrypt when the server offers it, without checking the certificate.
+            // Hosted databases on a private network (Render's internal URL has no sslmode) often use
+            // certificates that wouldn't verify. Use sslmode=require for a verified connection.
+            var opportunistic = TLSConfiguration.makeClientConfiguration()
+            opportunistic.certificateVerification = .none
+            tls = .prefer(opportunistic)
         }
         return PostgresClient.Configuration(host: host, port: components.port ?? 5432, username: user,
                                             password: components.percentEncodedPassword?.removingPercentEncoding,

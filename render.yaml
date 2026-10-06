@@ -1,0 +1,52 @@
+# Render Blueprint for Peak's staging server (peak/Server). Render → New → Blueprint → pick this repo.
+# Creates the server (Docker) and its Postgres database. Secrets are entered in Render's dashboard, never here.
+# Walkthrough: peak/Server/README.md → "Staging on Render".
+services:
+  - type: web
+    name: peak-staging
+    runtime: docker
+    # Paid "starter" stays on. The free plan sleeps when idle, which would stop the Roblox pollers and pushes.
+    plan: starter
+    dockerfilePath: ./peak/Server/Dockerfile
+    dockerContext: ./peak
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - peak/Server/**
+        - peak/Packages/PeakKit/**
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: peak-staging-db
+          property: connectionString
+      # 32 random bytes, base64: exactly what the server needs to encrypt Roblox tokens.
+      - key: TOKEN_ENCRYPTION_KEY
+        generateValue: true
+      # From your Roblox OAuth app (Creator Dashboard → OAuth 2.0 apps).
+      - key: ROBLOX_CLIENT_ID
+        sync: false
+      - key: ROBLOX_CLIENT_SECRET
+        sync: false
+      # https://<this service's onrender.com address>/oauth/roblox/callback
+      - key: ROBLOX_REDIRECT_URI
+        sync: false
+      # Optional: from platform.claude.com. Leave empty to keep AI wording off.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Cheap settings for testing; raise them later.
+      - key: PEAK_AI_MODEL
+        value: claude-haiku-4-5
+      - key: PEAK_AI_MONTHLY_BUDGET_USD
+        value: "5"
+      - key: PEAK_AI_DAILY_ASKS
+        value: "20"
+
+databases:
+  - name: peak-staging-db
+    # The free database plan expires; this one keeps data and backups.
+    plan: basic-256mb
+    databaseName: peak
+    user: peak
+    postgresMajorVersion: "16"
+    # Only Render services can connect.
+    ipAllowList: []
