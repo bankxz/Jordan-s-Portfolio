@@ -1,0 +1,25 @@
+Xcode 16.4
+Build version 16F6
+Simulator: iPhone 17
+
+Test Case '-[PeakUITests.PeakUITests testAccessibilityTextSize]' passed (28.225 seconds).
+Test Case '-[PeakUITests.PeakUITests testAdsShowSuggestions]' passed (11.542 seconds).
+Test Case '-[PeakUITests.PeakUITests testBriefingAndAskPeak]' passed (16.575 seconds).
+Test Case '-[PeakUITests.PeakUITests testBriefingDarkAndLargeText]' passed (14.123 seconds).
+Test Case '-[PeakUITests.PeakUITests testContentFitsScreenWidth]' passed (7.122 seconds).
+Test Case '-[PeakUITests.PeakUITests testDarkModeScreens]' passed (11.411 seconds).
+Test Case '-[PeakUITests.PeakUITests testDeepLinkOpensGame]' passed (12.289 seconds).
+Test Case '-[PeakUITests.PeakUITests testEmptyState]' passed (6.579 seconds).
+Test Case '-[PeakUITests.PeakUITests testErrorReportsAndSetup]' passed (31.845 seconds).
+Test Case '-[PeakUITests.PeakUITests testErrorStateOffersRetry]' passed (6.798 seconds).
+Test Case '-[PeakUITests.PeakUITests testFavouriteToggleFromDetail]' passed (11.414 seconds).
+Test Case '-[PeakUITests.PeakUITests testGoalPlanner]' passed (10.305 seconds).
+Test Case '-[PeakUITests.PeakUITests testHomeShowsLiveNowAndGames]' passed (9.137 seconds).
+Test Case '-[PeakUITests.PeakUITests testLaunchURLRoutesToGoal]' passed (6.154 seconds).
+Test Case '-[PeakUITests.PeakUITests testOpenGameDetailAndSwitchRange]' passed (11.835 seconds).
+Test Case '-[PeakUITests.PeakUITests testPortfolioHealthBelowGames]' passed (10.765 seconds).
+Test Case '-[PeakUITests.PeakUITests testSignInScreen]' passed (7.930 seconds).
+Test Case '-[PeakUITests.PeakUITests testTabsAndGoalDetail]' passed (19.562 seconds).
+Test Case '-[PeakUITests.PeakUITests testUnusualChangesOnAlerts]' passed (44.294 seconds).
+Test Case '-[PeakUITests.PeakUITests testUpdateImpactOnGameDetail]' passed (17.743 seconds).
+** TEST SUCCEEDED **
