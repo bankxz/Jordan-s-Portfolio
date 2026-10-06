@@ -3,6 +3,7 @@ import SwiftUI
 
 struct GamesListView: View {
     @Environment(AppModel.self) private var model
+    @Environment(InsightsModel.self) private var insights
     @State private var searchText = ""
 
     var body: some View {
@@ -28,6 +29,13 @@ struct GamesListView: View {
     private func list(_ dashboard: Dashboard) -> some View {
         let games = filtered(dashboard.games)
         return List {
+            if searchText.isEmpty, let ranking = insights.portfolio.value, ranking.count > 1 {
+                Section {
+                    PortfolioHealthCard(ranking: ranking)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                }
+            }
             if games.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
@@ -102,4 +110,5 @@ private struct GameListRow: View {
 #Preview {
     NavigationStack { GamesListView() }
         .environment(PreviewSupport.model(.normal))
+        .environment(PreviewSupport.insights(.normal))
 }

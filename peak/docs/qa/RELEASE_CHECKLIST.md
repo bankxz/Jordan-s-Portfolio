@@ -20,5 +20,8 @@ Version: ______  Build: ______  Date: ______  Tester: ______
 | 12 | Visual QA pass (`VISUAL_QA.md`) | `hig` | | |
 | 13 | Physical iPhone pass | — | | |
 | 14 | Crash/hang/MetricKit review of previous build | — | | |
+| 15 | AI: privacy policy names Anthropic as a processor; App Store privacy label updated; consent screen wording matches the policy (decision 0007) | `claude-api` | | |
+| 16 | AI: real Claude calls on staging: briefing wording passes the number check; Ask answers a question per V1 feature; refusal falls back cleanly; usage and cost recorded | `claude-api` | | |
+| 17 | AI: monthly budget and a Claude Console spend limit set; daily ask limit tested | — | | |
 
 **Verdict:** Ship / Hold. **Blocking items:**

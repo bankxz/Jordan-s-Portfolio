@@ -161,3 +161,15 @@ Slice 5b (server):
   as 20%. Fixed with a half-open window.
 - Not verified: real Claude API calls (no key in this environment; request shape follows the claude-api skill),
   and whether Roblox's `updated` changes only on publish.
+Slice 5c (app):
+- InsightsModel (separate from AppModel, so a failed insight never blanks the dashboard).
+- Today's briefing card on Home and a full Briefing screen. Facts show exact numbers; AI summaries are marked "AI".
+- Ask Peak sheet with an AI consent screen (what's sent, to whom, numbers checked, AI never changes anything).
+- "Unusual now" digests on Alerts, with possible causes labelled as such, a next step, and a shareable Claude prompt.
+- Update impact card on game detail and portfolio health on Games.
+- Goal planner sheet on Goals: on-device, offline, no AI.
+- Demo mode uses DemoInsightService, so CI screenshots show every state.
+- Unit tests for InsightsModel. UI journeys with screenshots: home-briefing (light, dark, AX-XXL), briefing-detail,
+  ask-consent, ask-suggestions, ask-answer, alerts-unusual, games-portfolio, game-update-impact, goal-planner.
+- Open before release: a privacy policy that names Anthropic; I removed an unverified "doesn't train on this data"
+  claim from the consent screen (RELEASE_CHECKLIST items 15–17).

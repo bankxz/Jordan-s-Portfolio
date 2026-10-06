@@ -3,6 +3,7 @@ import SwiftUI
 
 struct GoalsListView: View {
     @Environment(AppModel.self) private var model
+    @State private var isPlanning = false
 
     var body: some View {
         ScrollView {
@@ -34,6 +35,20 @@ struct GoalsListView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Goals")
         .refreshable { await model.refresh() }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isPlanning = true
+                } label: {
+                    Label("Plan a goal", systemImage: "calendar.badge.plus")
+                }
+                .disabled(model.dashboard?.games.isEmpty ?? true)
+                .accessibilityIdentifier("planGoalButton")
+            }
+        }
+        .sheet(isPresented: $isPlanning) {
+            GoalPlannerView()
+        }
     }
 
     /// Goals needing attention first.

@@ -6,6 +6,7 @@ struct GameDetailView: View {
     let gameID: Int64
 
     @Environment(AppModel.self) private var model
+    @Environment(InsightsModel.self) private var insights
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var range: TimeRange = .day
     @State private var series: SeriesState = .loading
@@ -32,6 +33,7 @@ struct GameDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         // Reloads when the range changes; the previous request is cancelled automatically.
         .task(id: range) { await loadSeries() }
+        .task { await insights.loadUpdateReport(gameID: gameID) }
     }
 
     private func content(_ game: Game) -> some View {
@@ -64,6 +66,10 @@ struct GameDetailView: View {
                     MetricCard(title: "Visits", value: MetricFormatter.compact(game.stats.visits), systemImage: "eye")
                     MetricCard(title: "Favourites", value: MetricFormatter.compact(game.stats.favourites),
                                systemImage: "star")
+                }
+
+                if case .loaded(let report?)? = insights.updateReports[gameID] {
+                    UpdateImpactCard(report: report, gameName: game.name)
                 }
             }
             .padding(16)
@@ -214,4 +220,5 @@ struct CCUChart: View {
 #Preview {
     NavigationStack { GameDetailView(gameID: SampleData.seeds[0].id) }
         .environment(PreviewSupport.model(.normal))
+        .environment(PreviewSupport.insights(.normal))
 }

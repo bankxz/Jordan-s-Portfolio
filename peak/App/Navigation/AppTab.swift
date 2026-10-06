@@ -32,4 +32,5 @@ enum Destination: Hashable {
     case game(id: Int64)
     case goal(id: UUID)
     case campaign(id: String)
+    case briefing
 }

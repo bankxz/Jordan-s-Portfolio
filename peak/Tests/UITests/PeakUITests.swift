@@ -178,4 +178,80 @@ final class PeakUITests: XCTestCase {
         XCTAssertEqual(title.label, "Obby Rush")
         screenshot(app, "deeplink-game")
     }
+
+    // MARK: Insights and AI
+
+    @MainActor
+    func testBriefingAndAskPeak() {
+        let app = launch()
+        let briefing = element(app, "briefingCard")
+        XCTAssertTrue(briefing.waitForExistence(timeout: 15))
+        screenshot(app, "home-briefing")
+
+        briefing.tap()
+        XCTAssertTrue(app.navigationBars["Briefing"].waitForExistence(timeout: 10))
+        screenshot(app, "briefing-detail")
+        app.navigationBars.buttons.firstMatch.tap()
+
+        element(app, "askButton").tap()
+        let consent = element(app, "consentButton")
+        XCTAssertTrue(consent.waitForExistence(timeout: 10))
+        screenshot(app, "ask-consent")
+        consent.tap()
+
+        let suggestion = app.buttons["Why did my top game lose players yesterday?"]
+        XCTAssertTrue(suggestion.waitForExistence(timeout: 10))
+        screenshot(app, "ask-suggestions")
+        suggestion.tap()
+        XCTAssertTrue(element(app, "askAnswer").waitForExistence(timeout: 10))
+        screenshot(app, "ask-answer")
+    }
+
+    @MainActor
+    func testUnusualChangesOnAlerts() {
+        let app = launch()
+        app.tabBars.buttons["Alerts"].tap()
+        XCTAssertTrue(element(app, "digest.\(attackAnimals)").waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Possible cause")).firstMatch.exists)
+        screenshot(app, "alerts-unusual")
+    }
+
+    @MainActor
+    func testUpdateImpactOnGameDetail() {
+        let app = launch()
+        app.tabBars.buttons["Games"].tap()
+        XCTAssertTrue(element(app, "portfolioCard").waitForExistence(timeout: 15))
+        screenshot(app, "games-portfolio")
+        let row = element(app, "gameRow.\(attackAnimals)")
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let card = element(app, "updateImpactCard")
+        for _ in 0..<4 where card.exists == false || card.isHittable == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        screenshot(app, "game-update-impact")
+    }
+
+    @MainActor
+    func testGoalPlanner() {
+        let app = launch()
+        app.tabBars.buttons["Goals"].tap()
+        let plan = element(app, "planGoalButton")
+        XCTAssertTrue(plan.waitForExistence(timeout: 15))
+        plan.tap()
+        XCTAssertTrue(element(app, "goalPlanSummary").waitForExistence(timeout: 10))
+        screenshot(app, "goal-planner")
+    }
+
+    @MainActor
+    func testBriefingDarkAndLargeText() {
+        let dark = launch(dark: true)
+        XCTAssertTrue(element(dark, "briefingCard").waitForExistence(timeout: 15))
+        screenshot(dark, "home-briefing-dark")
+        dark.terminate()
+        let large = launch(textSize: "UICTContentSizeCategoryAccessibilityXXL")
+        XCTAssertTrue(element(large, "briefingCard").waitForExistence(timeout: 15))
+        screenshot(large, "home-briefing-a11y-xxl")
+    }
 }

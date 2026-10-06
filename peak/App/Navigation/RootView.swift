@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @Environment(InsightsModel.self) private var insights
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -18,7 +19,11 @@ struct RootView: View {
         // previous load if the phase flips again, so there's never more than one refresh per scene.
         .task(id: scenePhase) {
             guard scenePhase == .active else { return }
-            await model.refresh()
+            // Insights load alongside the dashboard and fail independently of it.
+            let model = model, insights = insights
+            async let dashboard: Void = model.refresh()
+            async let insightsLoad: Void = insights.refresh()
+            _ = await (dashboard, insightsLoad)
         }
         .overlay(alignment: .top) {
             if let message = model.actionError {
@@ -51,6 +56,7 @@ private struct DestinationView: View {
         case .game(let id): GameDetailView(gameID: id)
         case .goal(let id): GoalDetailView(goalID: id)
         case .campaign(let id): CampaignDetailView(campaignID: id)
+        case .briefing: BriefingView()
         }
     }
 }

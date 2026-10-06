@@ -3,6 +3,8 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(AppModel.self) private var model
+    @Environment(InsightsModel.self) private var insights
+    @State private var isAsking = false
 
     var body: some View {
         ScrollView {
@@ -14,7 +16,25 @@ struct HomeView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Peak")
-        .refreshable { await model.refresh() }
+        .refreshable {
+            let model = model, insights = insights
+            async let dashboard: Void = model.refresh()
+            async let briefing: Void = insights.refresh()
+            _ = await (dashboard, briefing)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isAsking = true
+                } label: {
+                    Label("Ask Peak", systemImage: "sparkles")
+                }
+                .accessibilityIdentifier("askButton")
+            }
+        }
+        .sheet(isPresented: $isAsking) {
+            AskView()
+        }
     }
 
     @ViewBuilder
@@ -45,6 +65,8 @@ struct HomeView: View {
         LiveNowCard(totalCCU: dashboard.totalCCU, totalRobux: dashboard.totalRobux24h,
                          gameCount: dashboard.games.count, updatedAt: dashboard.generatedAt,
                          now: model.currentDate)
+
+        briefingSection
 
         let focus = focusGames(dashboard)
         if focus.isEmpty == false {
@@ -82,6 +104,26 @@ struct HomeView: View {
         }
     }
 
+    @ViewBuilder
+    private var briefingSection: some View {
+        switch insights.briefing {
+        case .loaded(let briefing):
+            NavigationLink(value: Destination.briefing) {
+                BriefingCard(briefing: briefing)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("briefingCard")
+        case .failed:
+            // The dashboard is still useful without the briefing; keep the error small.
+            Label("Today's briefing couldn't load. Pull to refresh.", systemImage: "sun.max")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .card()
+        default:
+            LoadingCard(lines: 3)
+        }
+    }
+
     /// Favourites and games marked "Working on" first; otherwise the top games by CCU.
     private func focusGames(_ dashboard: Dashboard) -> [Game] {
         let pinned = dashboard.games.filter { $0.isFavourite || $0.isWorkingOn }
@@ -93,14 +135,17 @@ struct HomeView: View {
 #Preview("Loaded") {
     NavigationStack { HomeView() }
         .environment(PreviewSupport.model(.normal))
+        .environment(PreviewSupport.insights(.normal))
 }
 
 #Preview("Empty") {
     NavigationStack { HomeView() }
         .environment(PreviewSupport.model(.empty))
+        .environment(PreviewSupport.insights(.empty))
 }
 
 #Preview("Error") {
     NavigationStack { HomeView() }
         .environment(PreviewSupport.model(.failing))
+        .environment(PreviewSupport.insights(.failing))
 }

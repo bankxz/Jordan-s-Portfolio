@@ -73,9 +73,24 @@ struct CampaignDetailView: View {
 
 struct AlertsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(InsightsModel.self) private var insights
 
     var body: some View {
         List {
+            if let digests = insights.digests.value, digests.isEmpty == false {
+                Section {
+                    ForEach(digests) { digest in
+                        DigestCard(digest: digest)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+                            .listRowBackground(Color.clear)
+                    }
+                } header: {
+                    Text("Unusual now")
+                        .accessibilityIdentifier("alertsUnusualHeader")
+                } footer: {
+                    Text("Peak compares each game with the same time in previous weeks. Causes are possibilities to check, not confirmed.")
+                }
+            }
             if let dashboard = model.dashboard {
                 Section {
                     if dashboard.recentAlerts.isEmpty {
@@ -103,6 +118,11 @@ struct AlertsView: View {
             }
         }
         .navigationTitle("Alerts")
-        .refreshable { await model.refresh() }
+        .refreshable {
+            let model = model, insights = insights
+            async let dashboard: Void = model.refresh()
+            async let digests: Void = insights.loadDigests()
+            _ = await (dashboard, digests)
+        }
     }
 }
