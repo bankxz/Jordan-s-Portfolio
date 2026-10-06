@@ -133,3 +133,15 @@ against Postgres 16 (Swift 6.2 container). One rename slip was caught by the sui
 scheme `peak` instead of `peakstats`.
 Verified in CI: the app build, simulator unit and UI tests, and screenshots (title "Peak").
 Decisions: [0006](decisions/0006-rename-to-peak.md)
+
+## 2026-10-06 — Slice 5: AI insights (V1 foundation)
+
+Skills: claude-api (raw HTTP Messages API for Swift, structured outputs, refusal fallbacks, model/pricing),
+roblox-cloud (read-only scopes, incremental consent), roblox-analytics (funnels/custom events need in-game
+AnalyticsService logging), guide-swift-testing (edge cases: empty, flat, noisy, huge, DST), swiftui/hig (briefing
+card, Ask screen; skills not installed in this cloud session, so the macOS CI job does the visual checks)
+Reason: AI must be grounded in computed facts, label causes as possible, never act, and stay within a budget.
+Deployment-target notes: none in PeakKit (Foundation only). Charts/SwiftUI in the app stay iOS 17.
+Feasibility check: Open Cloud openapi.json and the Analytics supported-metrics page (2026-10-06). See
+docs/ai/AI_FEATURES.md.
+Decisions: [0007](decisions/0007-ai-layer.md)
