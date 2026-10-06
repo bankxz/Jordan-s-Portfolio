@@ -7,6 +7,7 @@ struct PeakApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model: AppModel
     @State private var insights: InsightsModel
+    @State private var account: AccountModel
     private let configuration: AppConfiguration
 
     init() {
@@ -15,6 +16,7 @@ struct PeakApp: App {
         let models = Self.makeModels(configuration: configuration)
         _model = State(initialValue: models.app)
         _insights = State(initialValue: models.insights)
+        _account = State(initialValue: models.account)
         registration = models.registration
     }
 
@@ -22,9 +24,10 @@ struct PeakApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            AppGate()
                 .environment(model)
                 .environment(insights)
+                .environment(account)
                 .environment(appDelegate.notifications)
                 .preferredColorScheme(colorScheme)
                 .onOpenURL { url in
@@ -48,15 +51,18 @@ struct PeakApp: App {
 
     @MainActor
     private static func makeModels(configuration: AppConfiguration)
-        -> (app: AppModel, insights: InsightsModel, registration: any PushRegistrationService) {
+        -> (app: AppModel, insights: InsightsModel, account: AccountModel, registration: any PushRegistrationService) {
         let service: any DashboardService
         let insightService: any InsightService
         let registration: any PushRegistrationService
+        let account: AccountModel
         switch configuration.dataSource {
         case .demo(let mode):
             service = DemoDashboardService(mode: mode)
             insightService = DemoInsightService(mode: mode)
             registration = DemoPushRegistration()
+            account = AccountModel(service: DemoSignInService(signedIn: configuration.startsSignedOut == false),
+                                   canSignOut: false)
         case .remote(let baseURL):
             let transport = URLSessionTransport()
             let refresher = BackendTokenRefresher(client: APIClient(baseURL: baseURL, transport: transport, auth: nil))
@@ -65,12 +71,13 @@ struct PeakApp: App {
             service = RemoteDashboardService(client: client)
             insightService = RemoteInsightService(client: client)
             registration = RemotePushRegistration(client: client)
+            account = AccountModel(service: RemoteSignInService(client: client, session: auth), canSignOut: true)
         }
         let app = AppModel(
             service: service,
             snapshotStore: SnapshotStore(appGroup: SharedConfiguration.appGroup),
             onSnapshotPublished: { WidgetCenter.shared.reloadAllTimelines() }
         )
-        return (app, InsightsModel(service: insightService), registration)
+        return (app, InsightsModel(service: insightService), account, registration)
     }
 }

@@ -8,6 +8,7 @@ import PeakKit
 /// - `-colorScheme dark|light` forces an appearance
 /// - `-UIPreferredContentSizeCategoryName <category>` (UIKit) forces a Dynamic Type size
 /// - `-openURL <url>` routes a deep link at launch (UI tests for widget/notification routing)
+/// - `-signedOut` starts demo mode on the sign-in screen
 struct AppConfiguration: Sendable {
     enum DataSource: Sendable, Equatable {
         case demo(DemoDashboardService.Mode)
@@ -21,12 +22,15 @@ struct AppConfiguration: Sendable {
     let dataSource: DataSource
     let forcedColorScheme: ForcedColorScheme?
     var launchURL: URL?
+    /// Demo only: show the sign-in screen first.
+    var startsSignedOut = false
 
     static func current(bundle: Bundle = .main, arguments: [String] = ProcessInfo.processInfo.arguments) -> AppConfiguration {
         let forcedScheme = value(after: "-colorScheme", in: arguments).flatMap(ForcedColorScheme.init(rawValue:))
         let launchURL = value(after: "-openURL", in: arguments).flatMap(URL.init(string:))
         var configuration = makeBase(bundle: bundle, arguments: arguments, forcedScheme: forcedScheme)
         configuration.launchURL = launchURL
+        configuration.startsSignedOut = arguments.contains("-signedOut")
         return configuration
     }
 

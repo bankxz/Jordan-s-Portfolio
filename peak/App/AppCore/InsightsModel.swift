@@ -188,6 +188,19 @@ final class InsightsModel {
         }
     }
 
+    /// Forgets the previous account's insights (sign-out).
+    func reset() {
+        briefing = .idle
+        digests = .idle
+        portfolio = .idle
+        settings = nil
+        settingsError = nil
+        updateReports = [:]
+        funnels = [:]
+        errors = [:]
+        conversation = []
+    }
+
     func clearConversation() {
         conversation.removeAll { $0.isPending == false }
     }

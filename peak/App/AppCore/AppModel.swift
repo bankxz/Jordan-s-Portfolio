@@ -21,6 +21,15 @@ final class AppModel {
     private(set) var dashboard: Dashboard?
     /// Message for the most recent failed action (favourite toggle etc.), shown as a transient banner.
     var actionError: String?
+    /// Set when a refresh failed because the Peak session or the Roblox connection is gone.
+    private(set) var sessionProblem: SessionProblem?
+
+    enum SessionProblem: Equatable {
+        /// Peak's session ended (signed out elsewhere, refresh token rejected).
+        case signedOut
+        /// Still signed in to Peak, but Roblox access was revoked or expired.
+        case reconnectRoblox
+    }
 
     var selectedTab: AppTab = .home
     var homePath: [Destination] = []
@@ -58,12 +67,37 @@ final class AppModel {
             let fresh = try await service.dashboard()
             dashboard = fresh
             phase = .loaded
+            sessionProblem = nil
             publishSnapshot(for: fresh)
         } catch is CancellationError {
             if dashboard == nil { phase = .idle }
         } catch {
             phase = .failed(message: Self.message(for: error))
+            sessionProblem = Self.sessionProblem(for: error)
         }
+    }
+
+    static func sessionProblem(for error: any Error) -> SessionProblem? {
+        if error is AuthError { return .signedOut }
+        switch error as? APIError {
+        case .unauthorized?: return .signedOut
+        case .reconnectRequired?: return .reconnectRoblox
+        default: return nil
+        }
+    }
+
+    /// Forgets the previous account's data and navigation (sign-out, or a different creator signing in).
+    func reset() {
+        dashboard = nil
+        phase = .idle
+        actionError = nil
+        sessionProblem = nil
+        selectedTab = .home
+        homePath = []
+        gamesPath = []
+        goalsPath = []
+        adsPath = []
+        alertsPath = []
     }
 
     /// True when we're showing an older dashboard because the latest refresh failed.

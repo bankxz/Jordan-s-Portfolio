@@ -208,3 +208,73 @@ jobs:
           name: peak-build-log
           path: peak/build.log
           retention-days: 14
+
+  # An unsigned iPhone build for sideloading with a free Apple ID (AltStore or Sideloadly re-sign it).
+  # Unsigned means no entitlements: no push notifications and no widget data sharing, which free accounts
+  # can't use anyway. Server address: peak/Config/sideload.env (empty = demo mode).
+  ios-sideload:
+    name: iPhone app file for AltStore / Sideloadly (.ipa)
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: peak
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read server address
+        id: config
+        run: |
+          url="$(sed -n 's/^PEAK_API_BASE_URL=//p' Config/sideload.env | tr -d '[:space:]')"
+          case "$url" in
+            "") echo "No server address set: building demo mode." ;;
+            https://*) echo "Server: $url" ;;
+            *) echo "::error::PEAK_API_BASE_URL in Config/sideload.env must start with https://"; exit 1 ;;
+          esac
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build for iPhone (unsigned)
+        env:
+          API_BASE_URL: ${{ steps.config.outputs.url }}
+        run: |
+          set +e
+          xcodebuild build \
+            -project Peak.xcodeproj \
+            -scheme Peak \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PEAK_API_BASE_URL="$API_BASE_URL" > build-device.log 2>&1
+          status=$?
+          grep -E "error:|\*\* BUILD" build-device.log | tail -100
+          exit $status
+
+      - name: Package .ipa
+        env:
+          API_BASE_URL: ${{ steps.config.outputs.url }}
+        run: |
+          app=build/dd/Build/Products/Release-iphoneos/Peak.app
+          test -d "$app"
+          ls "$app/PlugIns"
+          baked="$(/usr/libexec/PlistBuddy -c 'Print :PeakAPIBaseURL' "$app/Info.plist")"
+          echo "Baked server address: '${baked}'"
+          [ "$baked" = "$API_BASE_URL" ] || { echo "::error::server address wasn't baked into Info.plist"; exit 1; }
+          mkdir -p build/ipa/Payload
+          cp -R "$app" build/ipa/Payload/
+          (cd build/ipa && zip -qry ../Peak.ipa Payload)
+          ls -la build/Peak.ipa
+
+      - name: Upload .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: Peak-ipa
+          path: peak/build/Peak.ipa
+          retention-days: 30

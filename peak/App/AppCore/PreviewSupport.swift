@@ -12,6 +12,12 @@ enum PreviewSupport {
 
     static let notifications = NotificationController()
 
+    static func account(signedIn: Bool = true) -> AccountModel {
+        let model = AccountModel(service: DemoSignInService(signedIn: signedIn), canSignOut: true)
+        Task { await model.load() }
+        return model
+    }
+
     static func insights(_ mode: DemoDashboardService.Mode = .normal, consented: Bool = false) -> InsightsModel {
         let model = InsightsModel(service: DemoInsightService(mode: mode, consented: consented))
         Task { await model.refresh() }

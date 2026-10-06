@@ -263,3 +263,25 @@ Reason: the beta server-logs API needs a new scope and only sees server errors (
   client limits, the 100-pending cap, UTF-8-safe cutting, and a missing secret. It runs locally, not in CI
   (no pinned Luau release yet).
 - Not verified: the scripts in a real Roblox game, and Roblox Secrets end to end.
+
+## 2026-10-06 — Slice 10: Sign in with Roblox in the app, and a sideload build
+
+Skills: swiftui (`webAuthenticationSession`: the iOS 17.4 `callback:` API, with the iOS 16.4 one on 17.0–17.3),
+swiftui-ui-patterns (gate view, explicit states), hig (one primary action, privacy in plain words),
+guide-swift-testing.
+Reason: in live mode the app had no way to sign in. The backend flow and token storage existed, but nothing in
+the app started them.
+- PeakKit:
+  - `SignInCallback` parses `peakstats://auth/complete?code=…|error=…`, and only shows plain error codes.
+  - `RemoteSignInService` runs start → web page → exchange the code → Keychain. Sign-out also ends the
+    server session.
+  - `DemoSignInService` for demo mode.
+- App:
+  - `AccountModel`, and `AppGate` showing the sign-in screen in front of the tabs.
+  - A rejected session or a revoked Roblox grant (409) returns the creator to sign-in with a reason.
+  - Sign-out (Home → Account) clears the previous account's data from memory.
+- CI: `ios-sideload` builds an unsigned Release `.ipa` on every push. The server address comes from
+  `Config/sideload.env` (empty = demo mode), and the job fails if the address didn't make it into the app.
+  Install steps: `docs/SIDELOADING.md`.
+- Verified locally: 174 PeakKit tests. App code is verified in CI only (no Mac here).
+- Not verified: the real Roblox consent page in the web sheet, and installing with AltStore/Sideloadly.

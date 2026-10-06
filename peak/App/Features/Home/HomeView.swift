@@ -4,7 +4,9 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @Environment(InsightsModel.self) private var insights
+    @Environment(AccountModel.self) private var account
     @State private var isAsking = false
+    @State private var isConfirmingSignOut = false
 
     var body: some View {
         ScrollView {
@@ -23,6 +25,18 @@ struct HomeView: View {
             _ = await (dashboard, briefing)
         }
         .toolbar {
+            if account.canSignOut {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                            isConfirmingSignOut = true
+                        }
+                    } label: {
+                        Label("Account", systemImage: "person.crop.circle")
+                    }
+                    .accessibilityIdentifier("accountMenu")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     isAsking = true
@@ -34,6 +48,13 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isAsking) {
             AskView()
+        }
+        .confirmationDialog("Sign out of Peak?", isPresented: $isConfirmingSignOut, titleVisibility: .visible) {
+            Button("Sign out", role: .destructive) {
+                Task { await account.signOut() }
+            }
+        } message: {
+            Text("Your goals and alert rules stay on Peak's server. Sign in with Roblox to see them again.")
         }
     }
 
@@ -136,16 +157,19 @@ struct HomeView: View {
     NavigationStack { HomeView() }
         .environment(PreviewSupport.model(.normal))
         .environment(PreviewSupport.insights(.normal))
+        .environment(PreviewSupport.account())
 }
 
 #Preview("Empty") {
     NavigationStack { HomeView() }
         .environment(PreviewSupport.model(.empty))
         .environment(PreviewSupport.insights(.empty))
+        .environment(PreviewSupport.account())
 }
 
 #Preview("Error") {
     NavigationStack { HomeView() }
         .environment(PreviewSupport.model(.failing))
         .environment(PreviewSupport.insights(.failing))
+        .environment(PreviewSupport.account())
 }

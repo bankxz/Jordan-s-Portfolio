@@ -244,6 +244,19 @@ final class PeakUITests: XCTestCase {
     }
 
     @MainActor
+    func testSignInScreen() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-demoMode", "normal", "-signedOut"]
+        app.launch()
+        let button = element(app, "signInButton")
+        XCTAssertTrue(button.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["Peak"].exists)
+        screenshot(app, "sign-in")
+        button.tap()
+        XCTAssertTrue(app.tabBars.buttons["Home"].waitForExistence(timeout: 10))
+    }
+
+    @MainActor
     func testErrorReportsAndSetup() {
         let app = launch()
         app.tabBars.buttons["Games"].tap()
