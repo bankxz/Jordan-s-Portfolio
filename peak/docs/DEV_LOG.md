@@ -191,3 +191,7 @@ supported-metrics page (granularities, dimensions, 28-day crash data).
 - Verified locally: 114 server tests in memory and on Postgres 16, 151 PeakKit tests.
 - Not verified: real Roblox responses. In particular, whether rates arrive as fractions or percentages (normalised
   either way), and the FunnelStep label format (ordering doesn't depend on it).
+Slice 6b: digest push notifications.
+- One push per incident every 5 minutes, bad news only, at most once per game, metric and direction every 6 h,
+  claimed atomically (Postgres migration v4).
+- Tests: 118 server tests, in memory and on Postgres, including 10 concurrent claims giving exactly 1 winner.

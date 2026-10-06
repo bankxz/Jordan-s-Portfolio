@@ -81,6 +81,12 @@ pushes to the user's devices:
 
 Tokens that APNs reports as unregistered are deleted.
 
+**Unusual-change notifications** (smart alert prioritisation): every 5 minutes the server builds each user's
+alert digests. It pushes one notification per incident, with the headline change, what moved with it and the
+next step. It only pushes bad news of medium severity or higher, detected in the last 30 minutes, and at most
+once per game, metric and direction every 6 hours (claimed atomically in `digest_pushes`). These are separate
+from the user's own alert rules.
+
 ## Insights (decision 0007)
 
 Deterministic insights work for every user. AI wording is added only when the server has

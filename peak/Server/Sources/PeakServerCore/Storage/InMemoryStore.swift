@@ -21,6 +21,7 @@ public actor InMemoryStore: Store {
     private var consents: [UUID: Date] = [:]
     private var usage: [AIUsageRecord] = []
     private var insights: [InsightKey: Double] = [:]
+    private var digestPushes: [String: Date] = [:]
     private var funnels: [FunnelKey: FunnelSnapshot] = [:]
 
     private struct InsightKey: Hashable { var universeID: Int64; var metric: InsightMetric; var time: Date }
@@ -273,6 +274,15 @@ public actor InMemoryStore: Store {
             .sorted { $0.funnelName < $1.funnelName }
     }
 
+    // MARK: Digest pushes
+
+    public func claimDigestPush(userID: UUID, key: String, at: Date, cooldown: TimeInterval) -> Bool {
+        let id = "\(userID)|\(key)"
+        if let last = digestPushes[id], at.timeIntervalSince(last) < cooldown { return false }
+        digestPushes[id] = at
+        return true
+    }
+
     // MARK: AI
 
     public func aiConsent(userID: UUID) -> Date? { consents[userID] }
@@ -303,6 +313,7 @@ public actor InMemoryStore: Store {
         events[id] = nil
         deviceRecords = deviceRecords.filter { $0.value.userID != id }
         consents[id] = nil
+        digestPushes = digestPushes.filter { $0.key.hasPrefix("\(id)|") == false }
         // Spend stays counted, without the link to the deleted user.
         usage = usage.map { record in
             var record = record

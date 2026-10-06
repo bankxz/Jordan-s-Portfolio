@@ -133,7 +133,7 @@ Status 2026-10-06:
   - 7: Ads Manager CSV import.
   - 8 in the app is built, but its server data needs the game to log funnels.
   - Error logs: server logs ingestion (`universe:read`).
-  - Push notifications for the briefing and digests.
+  - A push notification for the morning briefing (needs each user's time zone). Digest pushes are built.
   - Real Claude calls on staging.
 
 1. Daily AI briefing

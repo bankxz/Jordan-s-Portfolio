@@ -94,6 +94,11 @@ public protocol Store: Sendable {
     /// The newest snapshot of each funnel for the universe.
     func latestFunnelSnapshots(universeID: Int64) async throws -> [FunnelSnapshot]
 
+    // MARK: Digest pushes
+    /// Atomically records that `key` was pushed to the user at `at`, unless it was already pushed within
+    /// `cooldown`. Returns `true` when the caller should push.
+    func claimDigestPush(userID: UUID, key: String, at: Date, cooldown: TimeInterval) async throws -> Bool
+
     // MARK: AI
     func aiConsent(userID: UUID) async throws -> Date?
     /// `nil` withdraws consent.

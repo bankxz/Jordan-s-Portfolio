@@ -192,6 +192,15 @@ public struct PostgresStore: Store {
                 PRIMARY KEY (universe_id, funnel_name, period_end))
             """,
         ]),
+        (4, [
+            """
+            CREATE TABLE digest_pushes (
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                key TEXT NOT NULL,
+                pushed_at TIMESTAMPTZ NOT NULL,
+                PRIMARY KEY (user_id, key))
+            """,
+        ]),
     ]
 
     /// Applies pending migrations under an advisory lock, so several instances starting at once are safe.
@@ -689,6 +698,21 @@ public struct PostgresStore: Store {
         var result: [FunnelSnapshot] = []
         for try await body in rows.decode(String.self) { result.append(try Self.decode(FunnelSnapshot.self, body)) }
         return result
+    }
+
+    // MARK: Digest pushes
+
+    public func claimDigestPush(userID: UUID, key: String, at: Date, cooldown: TimeInterval) async throws -> Bool {
+        // One statement: insert, or move the timestamp only if the cooldown has passed. A row back means "push".
+        let cutoff = at.addingTimeInterval(-cooldown)
+        let rows = try await client.query("""
+            INSERT INTO digest_pushes (user_id, key, pushed_at) VALUES (\(userID), \(key), \(at))
+            ON CONFLICT (user_id, key) DO UPDATE SET pushed_at = EXCLUDED.pushed_at
+            WHERE digest_pushes.pushed_at <= \(cutoff)
+            RETURNING 1
+            """, logger: logger)
+        for try await _ in rows.decode(Int32.self) { return true }
+        return false
     }
 
     // MARK: AI
