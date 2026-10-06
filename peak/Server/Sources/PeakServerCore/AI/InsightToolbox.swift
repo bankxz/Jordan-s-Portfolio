@@ -37,6 +37,10 @@ public struct InsightToolbox: AskToolbox {
                   description: "Before/after comparison around the game's latest update, with a verdict (improved, neutral, harmed or too early).",
                   inputSchema: ["type": "object", "additionalProperties": false, "required": ["game_id"],
                                 "properties": ["game_id": Self.gameIDSchema]]),
+            .init(name: "get_funnels",
+                  description: "Funnels the game logs (for example Join → Tutorial → First Egg) for the last 7 days: players per step, the biggest drop and whether it got worse.",
+                  inputSchema: ["type": "object", "additionalProperties": false, "required": ["game_id"],
+                                "properties": ["game_id": Self.gameIDSchema]]),
             .init(name: "get_goals",
                   description: "The creator's goals with progress, time used and status.",
                   inputSchema: ["type": "object", "additionalProperties": false, "properties": [:], "required": []]),
@@ -53,6 +57,7 @@ public struct InsightToolbox: AskToolbox {
             case "get_metric_history": try await metricHistory(input)
             case "get_alerts": try await alerts()
             case "get_update_impact": try await updateImpact(input)
+            case "get_funnels": try await funnels(input)
             case "get_goals": try await goals()
             case "get_portfolio_health": try await portfolio()
             default: throw ToolError("Unknown tool \(name).")
@@ -145,6 +150,20 @@ public struct InsightToolbox: AskToolbox {
             }),
             "caveats": .array(report.caveats.map { .string($0) }),
         ]
+    }
+
+    private func funnels(_ input: JSONValue) async throws -> JSONValue {
+        let game = try gameID(input)
+        let funnels = try await insights.funnels(userID: userID, universe: game)
+        guard funnels.isEmpty == false else {
+            return ["game_id": .number(Double(game)),
+                    "funnels": "none logged (the game needs AnalyticsService:LogFunnelStepEvent)"]
+        }
+        return .array(funnels.map { funnel in
+            ["name": .string(funnel.name), "summary": .string(funnel.report.summary),
+             "steps": .array(funnel.steps.map { ["step": .string($0.name), "players": .string(MetricFormatter.compact($0.players))] }),
+             "warnings": .array(funnel.report.warnings.map { .string($0) })]
+        })
     }
 
     private func goals() async throws -> JSONValue {

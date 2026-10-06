@@ -229,6 +229,12 @@ final class PeakUITests: XCTestCase {
         }
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         screenshot(app, "game-update-impact")
+        let funnel = element(app, "funnelCard")
+        for _ in 0..<4 where funnel.exists == false || funnel.isHittable == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(funnel.waitForExistence(timeout: 10))
+        screenshot(app, "game-funnel")
     }
 
     @MainActor

@@ -173,3 +173,21 @@ Slice 5c (app):
   ask-consent, ask-suggestions, ask-answer, alerts-unusual, games-portfolio, game-update-impact, goal-planner.
 - Open before release: a privacy policy that names Anthropic; I removed an unverified "doesn't train on this data"
   claim from the consent screen (RELEASE_CHECKLIST items 15–17).
+
+## 2026-10-06 — Slice 6: Roblox Analytics ingestion (retention, sessions, crash rate, funnels)
+
+Skills: roblox-cloud (Open Cloud Analytics Query API: request schema, operations, 30/min limit), roblox-analytics
+(funnels need LogFunnelStepEvent; Roblox back-fills skipped steps), guide-swift-testing
+Reason: update reports, portfolio health, the briefing and retention alerts were CCU/revenue-only.
+Primary source: Open Cloud openapi.json (QueryRequest: breakdown, filter, limit; DataPoint.status) and the
+supported-metrics page (granularities, dimensions, 28-day crash data).
+- Generic AnalyticsQuery and an AnalyticsPoller run every 6 h. Queries are paced at 20/min; one failing metric
+  doesn't stop the rest; insignificant points are dropped.
+- Postgres migration v3 (insight_samples, funnel_snapshots).
+- Funnel steps are ordered by player count: back-fill makes counts non-increasing, so this doesn't depend on the
+  label format.
+- Wired into update impact (whole days only), retention/crash anomalies, portfolio health, the briefing, the
+  `/v1/games/{id}/funnels` endpoint, an Ask `get_funnels` tool and the app's FunnelCard.
+- Verified locally: 114 server tests in memory and on Postgres 16, 151 PeakKit tests.
+- Not verified: real Roblox responses. In particular, whether rates arrive as fractions or percentages (normalised
+  either way), and the FunnelStep label format (ordering doesn't depend on it).

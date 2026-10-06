@@ -69,6 +69,11 @@ extension BackendAPI {
         Endpoint(path: "v1/insights/portfolio")
     }
 
+    /// Funnels the game logs with `AnalyticsService`, from the last 7 days. Empty when it logs none.
+    public static func funnels(gameID: Int64) -> Endpoint<[NamedFunnel]> {
+        Endpoint(path: "v1/games/\(gameID)/funnels")
+    }
+
     /// 404 when no update has been seen for the game yet.
     public static func updateImpact(gameID: Int64) -> Endpoint<UpdateImpactReport> {
         Endpoint(path: "v1/games/\(gameID)/update-impact")
@@ -90,6 +95,7 @@ public protocol InsightService: Sendable {
     func portfolio() async throws -> [GameHealth]
     /// `nil` when no update has been seen for the game.
     func updateImpact(gameID: Int64) async throws -> UpdateImpactReport?
+    func funnels(gameID: Int64) async throws -> [NamedFunnel]
 }
 
 public struct RemoteInsightService: InsightService {
@@ -105,6 +111,10 @@ public struct RemoteInsightService: InsightService {
     public func ask(_ question: String) async throws -> BackendAPI.AskAnswer { try await client.send(BackendAPI.ask(question)) }
     public func alertDigests() async throws -> [AlertDigest] { try await client.send(BackendAPI.alertDigests()) }
     public func portfolio() async throws -> [GameHealth] { try await client.send(BackendAPI.portfolio()) }
+
+    public func funnels(gameID: Int64) async throws -> [NamedFunnel] {
+        try await client.send(BackendAPI.funnels(gameID: gameID))
+    }
 
     public func updateImpact(gameID: Int64) async throws -> UpdateImpactReport? {
         do {

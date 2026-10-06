@@ -97,3 +97,21 @@ public enum FunnelAnalyzer {
         Double(transition.playersLost) * (1.5 - transition.conversion)
     }
 }
+
+/// A funnel the game logs, with its latest period's counts and analysis. The `/v1/games/{id}/funnels` payload.
+public struct NamedFunnel: Hashable, Codable, Sendable, Identifiable {
+    public var name: String
+    public var steps: [FunnelStep]
+    public var report: FunnelReport
+    /// End of the period the counts cover (exclusive).
+    public var periodEnd: Date
+
+    public init(name: String, steps: [FunnelStep], periodEnd: Date) {
+        self.name = name
+        self.steps = steps
+        self.report = FunnelAnalyzer.analyze(steps)
+        self.periodEnd = periodEnd
+    }
+
+    public var id: String { name }
+}

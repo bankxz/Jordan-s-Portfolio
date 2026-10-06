@@ -56,6 +56,19 @@ public extension SampleData {
             events: timeline(now: now))
     }
 
+    /// The example funnel from the AI spec: Join → Tutorial → First Egg → First Hatch → Upgrade → Zone 2.
+    static func funnels(gameID: Int64, now: Date) -> [NamedFunnel] {
+        guard gameID == attackAnimalsID else { return [] }
+        return [NamedFunnel(name: "Onboarding", steps: [
+            FunnelStep(name: "Join", players: 12_400, previousPlayers: 11_900),
+            FunnelStep(name: "Tutorial", players: 10_100, previousPlayers: 9_800),
+            FunnelStep(name: "First Egg", players: 6_200, previousPlayers: 7_100),
+            FunnelStep(name: "First Hatch", players: 5_700, previousPlayers: 6_400),
+            FunnelStep(name: "Upgrade", players: 3_300, previousPlayers: 3_600),
+            FunnelStep(name: "Zone 2", players: 2_150, previousPlayers: 2_300),
+        ], periodEnd: Calendar.utc.startOfDay(for: now))]
+    }
+
     static func briefing(now: Date) -> Briefing {
         let games = games(now: now)
         let favourites = games.filter(\.isFavourite)
@@ -158,6 +171,11 @@ public actor DemoInsightService: InsightService {
     public func portfolio() async throws -> [GameHealth] {
         try check()
         return mode == .empty ? [] : SampleData.portfolio(now: now())
+    }
+
+    public func funnels(gameID: Int64) async throws -> [NamedFunnel] {
+        try check()
+        return mode == .normal ? SampleData.funnels(gameID: gameID, now: now()) : []
     }
 
     public func updateImpact(gameID: Int64) async throws -> UpdateImpactReport? {

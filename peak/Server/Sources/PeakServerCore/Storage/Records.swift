@@ -175,3 +175,34 @@ public struct AIUsageRecord: Sendable, Hashable {
         self.time = time
     }
 }
+
+/// A daily Roblox Analytics value (retention, session length, crash rate…) for one universe.
+public struct InsightSample: Sendable, Hashable {
+    public var universeID: Int64
+    public var metric: InsightMetric
+    /// Start of the UTC day (or bucket) the value covers.
+    public var time: Date
+    public var value: Double
+
+    public init(universeID: Int64, metric: InsightMetric, time: Date, value: Double) {
+        self.universeID = universeID
+        self.metric = metric
+        self.time = time
+        self.value = value
+    }
+}
+
+/// Player counts per funnel step for one period, as logged by the game.
+public struct FunnelSnapshot: Sendable, Hashable, Codable {
+    public var universeID: Int64
+    public var funnelName: String
+    public var periodEnd: Date
+    public var steps: [FunnelStep]
+
+    public init(universeID: Int64, funnelName: String, periodEnd: Date, steps: [FunnelStep]) {
+        self.universeID = universeID
+        self.funnelName = funnelName
+        self.periodEnd = periodEnd
+        self.steps = steps
+    }
+}

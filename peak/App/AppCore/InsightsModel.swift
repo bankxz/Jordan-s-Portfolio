@@ -42,6 +42,7 @@ final class InsightsModel {
     private(set) var settings: BackendAPI.AISettings?
     private(set) var settingsError: String?
     private(set) var updateReports: [Int64: Load<UpdateImpactReport?>] = [:]
+    private(set) var funnels: [Int64: Load<[NamedFunnel]>] = [:]
     private(set) var conversation: [Exchange] = []
     private(set) var isChangingConsent = false
 
@@ -111,6 +112,16 @@ final class InsightsModel {
         } catch is CancellationError {
         } catch {
             if updateReports[gameID]?.value == nil { updateReports[gameID] = .failed(Self.message(for: error)) }
+        }
+    }
+
+    func loadFunnels(gameID: Int64) async {
+        if funnels[gameID]?.value == nil { funnels[gameID] = .loading }
+        do {
+            funnels[gameID] = .loaded(try await service.funnels(gameID: gameID))
+        } catch is CancellationError {
+        } catch {
+            if funnels[gameID]?.value == nil { funnels[gameID] = .failed(Self.message(for: error)) }
         }
     }
 

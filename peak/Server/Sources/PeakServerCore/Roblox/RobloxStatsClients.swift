@@ -83,9 +83,9 @@ public protocol RobloxAnalyticsAPI: Sendable {
 }
 
 public struct RobloxAnalyticsClient: RobloxAnalyticsAPI {
-    private let baseURL: URL
+    let baseURL: URL
     private let http: any HTTPExecutor
-    private let pollDelays: [Duration]
+    let pollDelays: [Duration]
 
     /// `pollDelays`: back-off between polls of a long-running operation; its length bounds the attempts.
     public init(baseURL: URL, http: any HTTPExecutor,
@@ -146,11 +146,15 @@ public struct RobloxAnalyticsClient: RobloxAnalyticsAPI {
             && path.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || "/-_.".contains($0)) }
     }
 
-    private func headers(_ token: String) -> [String: String] {
+    func headers(_ token: String) -> [String: String] {
         ["Authorization": "Bearer \(token)", "Content-Type": "application/json", "Accept": "application/json"]
     }
 
     private func send(_ request: OutboundRequest) async throws -> Operation {
+        try await sendDecoding(request)
+    }
+
+    func sendDecoding<T: Decodable>(_ request: OutboundRequest) async throws -> T {
         let response = try await http.execute(request)
         switch response.status {
         case 200..<300: break
@@ -160,7 +164,7 @@ public struct RobloxAnalyticsClient: RobloxAnalyticsAPI {
         }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        guard let operation = try? decoder.decode(Operation.self, from: response.body) else { throw RobloxAPIError.malformedResponse }
+        guard let operation = try? decoder.decode(T.self, from: response.body) else { throw RobloxAPIError.malformedResponse }
         return operation
     }
 }

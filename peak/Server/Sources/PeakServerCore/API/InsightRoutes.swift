@@ -97,16 +97,25 @@ struct InsightRoutes {
             try JSONBody.response(try await insights.portfolio(userID: try context.requireAuth().userID))
         }
 
+        group.get("v1/games/:universeID/funnels") { _, context in
+            let userID = try context.requireAuth().userID
+            return try JSONBody.response(try await insights.funnels(userID: userID, universe: try universe(context)))
+        }
+
         group.get("v1/games/:universeID/update-impact") { _, context in
             let userID = try context.requireAuth().userID
-            guard let raw = context.parameters.get("universeID"), raw.allSatisfy(\.isASCII), raw.allSatisfy(\.isNumber),
-                  let universe = Int64(raw), universe > 0 else {
-                throw APIFailure.badRequest("invalid_universe")
-            }
-            guard let report = try await insights.updateImpact(userID: userID, universe: universe) else {
+            guard let report = try await insights.updateImpact(userID: userID, universe: try universe(context)) else {
                 throw APIFailure.notFound
             }
             return try JSONBody.response(report)
         }
+    }
+
+    private func universe(_ context: AppRequestContext) throws -> Int64 {
+        guard let raw = context.parameters.get("universeID"), raw.allSatisfy(\.isASCII), raw.allSatisfy(\.isNumber),
+              let universe = Int64(raw), universe > 0 else {
+            throw APIFailure.badRequest("invalid_universe")
+        }
+        return universe
     }
 }

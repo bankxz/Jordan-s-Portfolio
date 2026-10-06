@@ -21,6 +21,11 @@ struct SampleInsightsTests {
         #expect(briefing.games.map(\.name) == ["Attack Animals", "Obby Rush"])
         #expect((1...3).contains(briefing.actions.count))
 
+        let funnel = try #require(SampleData.funnels(gameID: SampleData.attackAnimalsID, now: now).first)
+        #expect(funnel.report.focus?.to == "First Egg")
+        #expect(funnel.report.summary.contains("It was 72.4% last period"))
+        #expect(SampleData.funnels(gameID: SampleData.obbyRushID, now: now).isEmpty)
+
         let portfolio = SampleData.portfolio(now: now)
         #expect(portfolio.first?.name == "Obby Rush")
         #expect(portfolio.contains { $0.name == "Pet Café Tycoon" && $0.needsUpdate })

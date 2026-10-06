@@ -33,7 +33,12 @@ struct GameDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         // Reloads when the range changes; the previous request is cancelled automatically.
         .task(id: range) { await loadSeries() }
-        .task { await insights.loadUpdateReport(gameID: gameID) }
+        .task {
+            let insights = insights, gameID = gameID
+            async let report: Void = insights.loadUpdateReport(gameID: gameID)
+            async let funnels: Void = insights.loadFunnels(gameID: gameID)
+            _ = await (report, funnels)
+        }
     }
 
     private func content(_ game: Game) -> some View {
@@ -70,6 +75,12 @@ struct GameDetailView: View {
 
                 if case .loaded(let report?)? = insights.updateReports[gameID] {
                     UpdateImpactCard(report: report, gameName: game.name)
+                }
+
+                if case .loaded(let funnels)? = insights.funnels[gameID] {
+                    ForEach(funnels) { funnel in
+                        FunnelCard(funnel: funnel, gameName: game.name)
+                    }
                 }
             }
             .padding(16)

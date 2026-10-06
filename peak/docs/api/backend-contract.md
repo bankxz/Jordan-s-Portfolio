@@ -96,13 +96,18 @@ number check (`NumberGrounding`): otherwise the template text is returned.
 | GET | `/v1/insights/alerts` | — | `[AlertDigest]`: unusual changes now, with possible causes and a next step |
 | GET | `/v1/insights/portfolio` | — | `[GameHealth]` ranked |
 | GET | `/v1/games/{universeId}/update-impact` | — | `UpdateImpactReport` for the latest update in 30 days; `404` when none |
+| GET | `/v1/games/{universeId}/funnels` | — | `[NamedFunnel]`: funnels the game logs, last 7 days, with the step to fix first; `[]` when it logs none |
 
-Sources in V1: CCU and revenue samples; update times from the public games API `updated` field (stored as
-timeline events, so edits to the experience's settings also count). Retention, crash rate, sessions and
-funnels need more Analytics data and feed the same engines once ingested.
+Sources: CCU and revenue samples; update times from the public games API `updated` field (stored as
+timeline events, so edits to the experience's settings also count); daily Analytics every 6 hours with
+`universe.analytics:read` (`ForwardD1Retention`, `ForwardD7Retention`, `AverageSessionLengthMinutes`,
+`AverageRevenuePerUser`, `PayingUsersCVR`, `ClientCrashRate15m`) and funnels (`FunnelUserTotalCount` by
+`FunnelName`/`FunnelStep`, 7-day windows). Analytics queries are paced to 20 per minute per authorization (Roblox
+allows 30); points Roblox marks `NotStatisticallySignificant` are dropped. Rates reported above 1 are treated
+as percentages and divided by 100 (to confirm against real data).
 
 Ask runs a read-only tool loop (`list_games`, `get_metric_history`, `get_alerts`, `get_update_impact`,
-`get_goals`, `get_portfolio_health`), all scoped to the caller's universes: at most 6 rounds and 8 tool calls.
+`get_funnels`, `get_goals`, `get_portfolio_health`), all scoped to the caller's universes: at most 6 rounds and 8 tool calls.
 
 ## Not yet implemented
 

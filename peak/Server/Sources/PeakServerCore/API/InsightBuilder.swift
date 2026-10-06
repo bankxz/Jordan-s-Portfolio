@@ -36,8 +36,32 @@ public struct InsightBuilder: Sendable {
                     result.append(anomaly)
                 }
             }
+            // Daily Analytics: a retention collapse or crash spike, against the same weekday in previous weeks.
+            for metric in [InsightMetric.d1Retention, .crashRate] {
+                let samples = try await daily(universe: universe, metric: metric, days: 36)
+                guard let latest = samples.last, current.timeIntervalSince(latest.date) <= 3 * 86_400 else { continue }
+                if case .anomaly(let anomaly) = AnomalyDetector.detect(gameID: universe, metric: metric, points: samples) {
+                    result.append(anomaly)
+                }
+            }
         }
         return result
+    }
+
+    /// Daily Analytics values for the last `days` days, as points dated at the start of each UTC day.
+    func daily(universe: Int64, metric: InsightMetric, days: Int) async throws -> [MetricPoint] {
+        let current = now()
+        return try await store.insightSamples(universeID: universe, metric: metric,
+                                              from: current.addingTimeInterval(-Double(days) * 86_400), to: current)
+            .map { MetricPoint(date: $0.time, value: $0.value) }
+    }
+
+    // MARK: Funnels
+
+    public func funnels(userID: UUID, universe: Int64) async throws -> [NamedFunnel] {
+        try await dashboard.requireOwnership(userID: userID, universeID: universe)
+        return try await store.latestFunnelSnapshots(universeID: universe)
+            .map { NamedFunnel(name: $0.funnelName, steps: $0.steps, periodEnd: $0.periodEnd) }
     }
 
     /// Mean of each metric over the half hour before `at - lag`, for each lag. Sparse on purpose: a handful of
@@ -97,6 +121,15 @@ public struct InsightBuilder: Sendable {
             }
             if points.isEmpty == false { series[metric.insightMetric] = points }
         }
+        // Daily Analytics: only days entirely before or entirely after the update; the update day is mixed.
+        for metric in [InsightMetric.d1Retention, .d7Retention, .sessionLength, .revenuePerPlayer, .crashRate] {
+            let points = try await store.insightSamples(universeID: universe, metric: metric,
+                                                        from: update.date.addingTimeInterval(-8 * 86_400),
+                                                        to: update.date.addingTimeInterval(8 * 86_400))
+                .filter { $0.time.addingTimeInterval(86_400) <= update.date || $0.time >= update.date }
+                .map { MetricPoint(date: $0.time.addingTimeInterval(43_200), value: $0.value) }
+            if points.isEmpty == false { series[metric] = points }
+        }
         let events = try await store.timelineEvents(universeIDs: [universe], from: update.date.addingTimeInterval(-7 * 86_400),
                                                     to: update.date.addingTimeInterval(7 * 86_400))
         return UpdateImpactAnalyzer.analyze(gameID: universe, updateLabel: "Update \(update.detail)", updateDate: update.date,
@@ -124,8 +157,11 @@ public struct InsightBuilder: Sendable {
                 return (Double(revenue) - then.value) / then.value
             }
             let lastUpdate = try await latestUpdate(universe: game.id, within: 365 * 86_400)
+            let d1 = try await daily(universe: game.id, metric: .d1Retention, days: 7).last?.value
+            let crashes = try await daily(universe: game.id, metric: .crashRate, days: 7).map(\.value)
             inputs.append(GameHealthInput(
                 gameID: game.id, name: game.name, ccuChange7d: ccuChange, revenueChange7d: revenueChange,
+                d1Retention: d1, crashRate: crashes.isEmpty ? nil : crashes.reduce(0, +) / Double(crashes.count),
                 openIssues: anomalies.filter { $0.gameID == game.id && !$0.isGoodNews }.count,
                 daysSinceUpdate: lastUpdate.map { Int(current.timeIntervalSince($0.date) / 86_400) }))
         }
@@ -146,7 +182,17 @@ public struct InsightBuilder: Sendable {
         var inputs: [BriefingGameInput] = []
         for game in favourites {
             let previous = revenueThen[game.id].flatMap { abs($0.date.timeIntervalSince(dayAgo)) <= 2 * 3_600 ? Int64($0.value) : nil }
-            inputs.append(BriefingGameInput(game: game, revenuePrevious24h: previous,
+            // Latest D1 retention (within 3 days) against the average of the 7 days before it.
+            let retention = try await daily(universe: game.id, metric: .d1Retention, days: 14)
+            var d1: Double?
+            var d1Previous: Double?
+            if let latest = retention.last, current.timeIntervalSince(latest.date) <= 3 * 86_400 {
+                d1 = latest.value
+                let before = retention.dropLast().suffix(7).map(\.value)
+                d1Previous = before.isEmpty ? nil : before.reduce(0, +) / Double(before.count)
+            }
+            inputs.append(BriefingGameInput(game: game, revenuePrevious24h: previous, d1Retention: d1,
+                                            d1RetentionPrevious: d1Previous,
                                             latestUpdate: try await updateImpact(userID: userID, universe: game.id)))
         }
         let events = try await store.timelineEvents(universeIDs: ids, from: current.addingTimeInterval(-2 * 86_400), to: current)

@@ -89,9 +89,9 @@ public enum PeakServerApp {
         let stats = StatsPoller(store: store, games: RobloxGamesClient(baseURL: config.roblox.gamesBaseURL, http: http),
                                 alerts: alerts, now: deps.now)
         let tokens = RobloxTokenManager(store: store, oauth: deps.oauth, box: deps.box, now: deps.now)
-        let revenue = RevenuePoller(store: store, tokens: tokens,
-                                    analytics: RobloxAnalyticsClient(baseURL: config.roblox.apisBaseURL, http: http),
-                                    now: deps.now)
+        let analyticsClient = RobloxAnalyticsClient(baseURL: config.roblox.apisBaseURL, http: http)
+        let revenue = RevenuePoller(store: store, tokens: tokens, analytics: analyticsClient, now: deps.now)
+        let dailyAnalytics = AnalyticsPoller(store: store, tokens: tokens, analytics: analyticsClient, now: deps.now)
 
         var app = Application(router: buildRouter(deps),
                               configuration: .init(address: .hostname(config.host, port: config.port)),
@@ -103,7 +103,9 @@ public enum PeakServerApp {
         }
         app.addServices(
             PeriodicService(name: "stats", interval: config.statsPollInterval, initialDelay: .seconds(5), logger: logger) { try await stats.tick(logger: $0) },
-            PeriodicService(name: "revenue", interval: config.revenuePollInterval, initialDelay: .seconds(30), logger: logger) { try await revenue.tick(logger: $0) }
+            PeriodicService(name: "revenue", interval: config.revenuePollInterval, initialDelay: .seconds(30), logger: logger) { try await revenue.tick(logger: $0) },
+            // Daily metrics change once a day; every 6 hours catches Roblox's late revisions.
+            PeriodicService(name: "analytics", interval: .seconds(6 * 3_600), initialDelay: .seconds(90), logger: logger) { try await dailyAnalytics.tick(logger: $0) }
         )
         try await app.runService()
     }

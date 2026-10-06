@@ -64,6 +64,14 @@ struct InsightsModelTests {
         }
     }
 
+    @Test func funnelsLoadPerGame() async {
+        let model = makeModel()
+        await model.loadFunnels(gameID: SampleData.attackAnimalsID)
+        await model.loadFunnels(gameID: SampleData.obbyRushID)
+        #expect(model.funnels[SampleData.attackAnimalsID]?.value?.first?.report.focus?.to == "First Egg")
+        #expect(model.funnels[SampleData.obbyRushID]?.value?.isEmpty == true)
+    }
+
     @Test func askErrorMessages() {
         #expect(InsightsModel.askMessage(for: APIError.forbidden) == "Turn on AI features to ask questions.")
         #expect(InsightsModel.askMessage(for: APIError.rateLimited(retryAfter: 60))

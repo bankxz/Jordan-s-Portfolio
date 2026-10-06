@@ -20,6 +20,11 @@ public actor InMemoryStore: Store {
     private var timeline: [TimelineEvent] = []
     private var consents: [UUID: Date] = [:]
     private var usage: [AIUsageRecord] = []
+    private var insights: [InsightKey: Double] = [:]
+    private var funnels: [FunnelKey: FunnelSnapshot] = [:]
+
+    private struct InsightKey: Hashable { var universeID: Int64; var metric: InsightMetric; var time: Date }
+    private struct FunnelKey: Hashable { var universeID: Int64; var name: String; var periodEnd: Date }
 
     public init() {}
 
@@ -238,6 +243,34 @@ public actor InMemoryStore: Store {
                     && (event.endDate ?? event.date) >= from && event.date <= to
             }
             .sorted { $0.date < $1.date }
+    }
+
+    // MARK: Analytics
+
+    public func upsertInsightSamples(_ samples: [InsightSample]) {
+        for sample in samples where sample.value.isFinite {
+            insights[InsightKey(universeID: sample.universeID, metric: sample.metric, time: sample.time)] = sample.value
+        }
+    }
+
+    public func insightSamples(universeID: Int64, metric: InsightMetric, from: Date, to: Date) -> [InsightSample] {
+        insights
+            .filter { $0.key.universeID == universeID && $0.key.metric == metric && $0.key.time >= from && $0.key.time <= to }
+            .map { InsightSample(universeID: universeID, metric: metric, time: $0.key.time, value: $0.value) }
+            .sorted { $0.time < $1.time }
+    }
+
+    public func saveFunnelSnapshots(_ snapshots: [FunnelSnapshot]) {
+        for snapshot in snapshots {
+            funnels[FunnelKey(universeID: snapshot.universeID, name: snapshot.funnelName, periodEnd: snapshot.periodEnd)] = snapshot
+        }
+    }
+
+    public func latestFunnelSnapshots(universeID: Int64) -> [FunnelSnapshot] {
+        let mine = funnels.values.filter { $0.universeID == universeID }
+        return Dictionary(grouping: mine, by: \.funnelName)
+            .compactMap { $0.value.max { $0.periodEnd < $1.periodEnd } }
+            .sorted { $0.funnelName < $1.funnelName }
     }
 
     // MARK: AI

@@ -84,6 +84,16 @@ public protocol Store: Sendable {
     /// Events for these games plus platform-wide ones (`gameID == nil`) overlapping `[from, to]`, oldest first.
     func timelineEvents(universeIDs: [Int64], from: Date, to: Date) async throws -> [TimelineEvent]
 
+    // MARK: Analytics (daily metrics and funnels)
+    /// Inserts or replaces (same universe, metric and time): Roblox revises recent days.
+    func upsertInsightSamples(_ samples: [InsightSample]) async throws
+    /// Values in `[from, to]`, oldest first.
+    func insightSamples(universeID: Int64, metric: InsightMetric, from: Date, to: Date) async throws -> [InsightSample]
+    /// Inserts or replaces (same universe, funnel and period end).
+    func saveFunnelSnapshots(_ snapshots: [FunnelSnapshot]) async throws
+    /// The newest snapshot of each funnel for the universe.
+    func latestFunnelSnapshots(universeID: Int64) async throws -> [FunnelSnapshot]
+
     // MARK: AI
     func aiConsent(userID: UUID) async throws -> Date?
     /// `nil` withdraws consent.

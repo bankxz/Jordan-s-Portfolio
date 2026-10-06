@@ -174,6 +174,24 @@ public struct PostgresStore: Store {
             "CREATE INDEX ai_usage_time_idx ON ai_usage (time)",
             "CREATE INDEX ai_usage_user_idx ON ai_usage (user_id, feature, time)",
         ]),
+        (3, [
+            """
+            CREATE TABLE insight_samples (
+                universe_id BIGINT NOT NULL,
+                metric TEXT NOT NULL,
+                time TIMESTAMPTZ NOT NULL,
+                value DOUBLE PRECISION NOT NULL,
+                PRIMARY KEY (universe_id, metric, time))
+            """,
+            """
+            CREATE TABLE funnel_snapshots (
+                universe_id BIGINT NOT NULL,
+                funnel_name TEXT NOT NULL,
+                period_end TIMESTAMPTZ NOT NULL,
+                body TEXT NOT NULL,
+                PRIMARY KEY (universe_id, funnel_name, period_end))
+            """,
+        ]),
     ]
 
     /// Applies pending migrations under an advisory lock, so several instances starting at once are safe.
@@ -624,6 +642,52 @@ public struct PostgresStore: Store {
             guard let kind = TimelineEvent.Kind(rawValue: kind) else { continue }
             result.append(TimelineEvent(kind: kind, gameID: universe == 0 ? nil : universe, date: time, endDate: end, detail: detail))
         }
+        return result
+    }
+
+    // MARK: Analytics
+
+    public func upsertInsightSamples(_ samples: [InsightSample]) async throws {
+        let valid = samples.filter { $0.value.isFinite }
+        guard valid.isEmpty == false else { return }
+        try await client.query("""
+            INSERT INTO insight_samples (universe_id, metric, time, value)
+            SELECT * FROM UNNEST(\(valid.map(\.universeID))::BIGINT[], \(valid.map(\.metric.rawValue))::TEXT[],
+                                 \(valid.map(\.time))::TIMESTAMPTZ[], \(valid.map(\.value))::DOUBLE PRECISION[])
+            ON CONFLICT (universe_id, metric, time) DO UPDATE SET value = EXCLUDED.value
+            """, logger: logger)
+    }
+
+    public func insightSamples(universeID: Int64, metric: InsightMetric, from: Date, to: Date) async throws -> [InsightSample] {
+        let rows = try await client.query("""
+            SELECT time, value FROM insight_samples
+            WHERE universe_id = \(universeID) AND metric = \(metric.rawValue) AND time >= \(from) AND time <= \(to)
+            ORDER BY time
+            """, logger: logger)
+        var result: [InsightSample] = []
+        for try await (time, value) in rows.decode((Date, Double).self) {
+            result.append(InsightSample(universeID: universeID, metric: metric, time: time, value: value))
+        }
+        return result
+    }
+
+    public func saveFunnelSnapshots(_ snapshots: [FunnelSnapshot]) async throws {
+        for snapshot in snapshots {
+            try await client.query("""
+                INSERT INTO funnel_snapshots (universe_id, funnel_name, period_end, body)
+                VALUES (\(snapshot.universeID), \(snapshot.funnelName), \(snapshot.periodEnd), \(try Self.encode(snapshot)))
+                ON CONFLICT (universe_id, funnel_name, period_end) DO UPDATE SET body = EXCLUDED.body
+                """, logger: logger)
+        }
+    }
+
+    public func latestFunnelSnapshots(universeID: Int64) async throws -> [FunnelSnapshot] {
+        let rows = try await client.query("""
+            SELECT DISTINCT ON (funnel_name) body FROM funnel_snapshots
+            WHERE universe_id = \(universeID) ORDER BY funnel_name, period_end DESC
+            """, logger: logger)
+        var result: [FunnelSnapshot] = []
+        for try await body in rows.decode(String.self) { result.append(try Self.decode(FunnelSnapshot.self, body)) }
         return result
     }
 

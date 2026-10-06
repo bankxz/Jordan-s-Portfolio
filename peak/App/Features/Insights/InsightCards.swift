@@ -279,3 +279,63 @@ struct BriefingCard: View {
         .accessibilityIdentifier("briefingCard")
     }
 }
+
+/// A funnel the game logs: conversion per step as bars, the step to fix first highlighted, and a Claude prompt.
+struct FunnelCard: View {
+    let funnel: NamedFunnel
+    let gameName: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Funnel: \(funnel.name)", systemImage: "line.3.horizontal.decrease")
+                .font(.headline)
+            if let first = funnel.steps.first?.players, first > 0 {
+                ForEach(Array(funnel.steps.enumerated()), id: \.offset) { index, step in
+                    let isFocus = funnel.report.focus?.to == step.name && index > 0
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack {
+                            Text(step.name)
+                                .font(.subheadline.weight(isFocus ? .semibold : .regular))
+                            Spacer()
+                            Text(MetricFormatter.compact(step.players))
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        GeometryReader { proxy in
+                            let share = min(1, Double(max(0, step.players)) / Double(first))
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(isFocus ? Color.orange : Color.accentColor.opacity(0.6))
+                                .frame(width: max(4, proxy.size.width * share))
+                        }
+                        .frame(height: 8)
+                        .accessibilityHidden(true)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(step.name): \(MetricFormatter.compact(step.players)) players\(isFocus ? ", biggest drop" : "")")
+                }
+            }
+            Text(funnel.report.summary)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(funnel.report.warnings, id: \.self) { warning in
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+            if funnel.report.focus != nil {
+                ShareLink(item: ClaudePromptGenerator.render(ClaudePromptGenerator.prompt(for: funnel.report, gameName: gameName)),
+                          preview: SharePreview("Claude prompt for \(funnel.name)")) {
+                    Label("Claude prompt", systemImage: "square.and.arrow.up")
+                        .font(.footnote.weight(.medium))
+                        .frame(minHeight: 44)
+                }
+            }
+            Text("Last 7 days, from the funnel steps your game logs with AnalyticsService.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .card()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("funnelCard")
+    }
+}

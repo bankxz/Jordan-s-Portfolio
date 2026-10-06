@@ -71,7 +71,7 @@ Data sources used below:
 
 | # | Feature | Data | Status |
 |---|---|---|---|
-| 8 | Funnel drop-off detector | funnel metrics ✅ (game must log funnel steps) | **V1** |
+| 8 | Funnel drop-off detector | funnel metrics ✅ (game must log funnel steps) | **V1, built** |
 | 9 | Progression wall detector | custom events ✅ + economy table 📥 | later |
 | 10 | Economy balance assistant (simulation) | economy table 📥 + economy metrics ✅ | later |
 | 11 | Retention doctor | D1/D7/D30 ✅ (Roblox reports D30, not D28) | later |
@@ -126,6 +126,15 @@ Data sources used below:
 | 42 | Weekly studio report | everything above | later |
 
 ## Version 1
+
+Status 2026-10-06:
+- **Built:** 1–6, 8, 9, 10, plus retention and crash-rate alerts, using daily Analytics every 6 hours.
+- **Still open:**
+  - 7: Ads Manager CSV import.
+  - 8 in the app is built, but its server data needs the game to log funnels.
+  - Error logs: server logs ingestion (`universe:read`).
+  - Push notifications for the briefing and digests.
+  - Real Claude calls on staging.
 
 1. Daily AI briefing
 2. Ask your analytics
