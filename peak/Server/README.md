@@ -76,31 +76,38 @@ Any container host works (Fly.io, Render, ECS, Cloud Run with min instances ≥ 
 running). Put it behind HTTPS; the Roblox redirect URL must be `https`. Set the app's
 `PEAK_API_BASE_URL` build setting to the server URL to switch the app from demo data to live data.
 
-## Staging on Render
+## Staging on Render (free)
 
-`render.yaml` at the repo root creates the server and a Postgres 16 database. It generates
-`TOKEN_ENCRYPTION_KEY` itself; you only enter the secrets.
+`render.yaml` at the repo root creates the server on Render's free plan. It generates `TOKEN_ENCRYPTION_KEY`
+itself; you only enter the secrets. Costs: $0 (no card for Neon; Render may ask for one to verify, but the free
+plan isn't charged).
 
-1. **Deploy.** render.com → New → Blueprint → this repo.
-   - When asked for values, use `https://example.com/oauth/roblox/callback` for `ROBLOX_REDIRECT_URI` and `x`
-     for the Roblox ID and secret for now.
-   - Leave `ANTHROPIC_API_KEY` empty unless you have one.
-   - Approve. The plans are paid "starter" (always on) and "basic-256mb" (no expiry).
-2. **Note the address.** Copy the service's address, e.g. `https://peak-staging.onrender.com`. Open
-   `/health` on it; it should say `ok`.
-3. **Roblox OAuth app.** In Creator Dashboard → OAuth 2.0 apps → create:
+Free-plan limits:
+- The server sleeps after 15 minutes without requests and takes about a minute to wake when you open the app.
+- While it sleeps it doesn't collect stats, send alerts or send the 8:00 briefing.
+- Neon's free database is permanent: 0.5 GB, and it sleeps when unused.
+
+1. **Database (Neon).** neon.tech → sign up → create a project (Postgres 16 or newer, a region near you) →
+   **Connect** → copy the connection string. It looks like
+   `postgresql://user:password@ep-….neon.tech/neondb?sslmode=require`. Keep it secret.
+2. **Deploy (Render).** render.com → New → Blueprint → this repo, branch `claude/rbx-pulse-skills-setup`.
+   - Paste the Neon string as `DATABASE_URL`.
+   - Use `https://example.com/oauth/roblox/callback` for `ROBLOX_REDIRECT_URI` and `x` for the Roblox ID and
+     secret for now.
+   - Leave `ANTHROPIC_API_KEY` empty (AI wording off, $0).
+3. **Note the address.** Copy the service's address, e.g. `https://peak-staging.onrender.com`. Open `/health`;
+   it should say `ok` (the first visit may take a minute while it wakes).
+4. **Roblox OAuth app.** In Creator Dashboard → OAuth 2.0 apps → create:
    - Category: Analytics & Insights Tools
    - Scopes: `openid`, `profile`, `universe.analytics:read`
    - Redirect URL: `<address>/oauth/roblox/callback`
-4. **Fill in the real values.** In Render → peak-staging → Environment, set `ROBLOX_CLIENT_ID`,
-   `ROBLOX_CLIENT_SECRET` and `ROBLOX_REDIRECT_URI` (the same URL as step 3), plus `ANTHROPIC_API_KEY` if you
-   have one. Saving redeploys. Also set a monthly spend limit in the Claude Console.
-5. **Check.**
-   - `/health` says `ok`.
-   - The logs show `applied migration` 1–7 on the first start.
-   - Opening `<address>/v1/auth/roblox/start` with a POST (e.g. from the app) returns an authorize URL.
+5. **Fill in the real values.** In Render → peak-staging → Environment, set `ROBLOX_CLIENT_ID`,
+   `ROBLOX_CLIENT_SECRET` and `ROBLOX_REDIRECT_URI` (the same URL as step 4). Saving redeploys.
+6. **Point the app at it.** Put the address in `peak/Config/sideload.env`; the next CI run builds a `.ipa` that
+   uses it.
 
-Error reports use the same address (`PUBLIC_BASE_URL` defaults to the redirect's origin).
+Error reports use the same address (`PUBLIC_BASE_URL` defaults to the redirect's origin). For an always-on
+server, change `plan: free` to `plan: starter` in `render.yaml`.
 
 ## Security notes
 

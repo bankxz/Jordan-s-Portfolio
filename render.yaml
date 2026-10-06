@@ -1,12 +1,14 @@
 # Render Blueprint for Peak's staging server (peak/Server). Render → New → Blueprint → pick this repo.
-# Creates the server (Docker) and its Postgres database. Secrets are entered in Render's dashboard, never here.
-# Walkthrough: peak/Server/README.md → "Staging on Render".
+# Free setup: Render's free plan runs the server; the database is a free Neon Postgres you create and paste in
+# (Render's free database is deleted after 30 days). Secrets are entered in Render's dashboard, never here.
+# Walkthrough: peak/Server/README.md → "Staging on Render (free)".
 services:
   - type: web
     name: peak-staging
     runtime: docker
-    # Paid "starter" stays on. The free plan sleeps when idle, which would stop the Roblox pollers and pushes.
-    plan: starter
+    # Free: sleeps after 15 minutes without requests and wakes (about a minute) when the app opens. While it
+    # sleeps, stats aren't collected and alerts/briefings don't run. "starter" (paid) stays on.
+    plan: free
     dockerfilePath: ./peak/Server/Dockerfile
     dockerContext: ./peak
     healthCheckPath: /health
@@ -15,10 +17,9 @@ services:
         - peak/Server/**
         - peak/Packages/PeakKit/**
     envVars:
+      # From neon.tech → your project → Connect (the URL ends in sslmode=require).
       - key: DATABASE_URL
-        fromDatabase:
-          name: peak-staging-db
-          property: connectionString
+        sync: false
       # 32 random bytes, base64: exactly what the server needs to encrypt Roblox tokens.
       - key: TOKEN_ENCRYPTION_KEY
         generateValue: true
@@ -41,12 +42,3 @@ services:
       - key: PEAK_AI_DAILY_ASKS
         value: "20"
 
-databases:
-  - name: peak-staging-db
-    # The free database plan expires; this one keeps data and backups.
-    plan: basic-256mb
-    databaseName: peak
-    user: peak
-    postgresMajorVersion: "16"
-    # Only Render services can connect.
-    ipAllowList: []
