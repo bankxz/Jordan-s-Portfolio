@@ -1,0 +1,71 @@
+# Peak on one machine: Postgres, the Peak server, and Caddy for https (automatic Let's Encrypt certificates).
+# Started by setup.sh; settings come from .env next to this file (created by setup.sh, never committed).
+name: peak
+
+# Keep logs from filling the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:16
+    logging: *logging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: peak
+      POSTGRES_DB: peak
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run setup.sh first}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U peak -d peak"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Not published: only the server can reach it.
+
+  server:
+    build:
+      context: ../..
+      dockerfile: Server/Dockerfile
+    image: peak-server:local
+    logging: *logging
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://peak:${POSTGRES_PASSWORD}@db:5432/peak?sslmode=disable
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?run setup.sh first}
+      ROBLOX_CLIENT_ID: ${ROBLOX_CLIENT_ID:?run setup.sh first}
+      ROBLOX_CLIENT_SECRET: ${ROBLOX_CLIENT_SECRET:?run setup.sh first}
+      ROBLOX_REDIRECT_URI: https://${PEAK_DOMAIN:?run setup.sh first}/oauth/roblox/callback
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PEAK_AI_MODEL: ${PEAK_AI_MODEL:-claude-haiku-4-5}
+      PEAK_AI_MONTHLY_BUDGET_USD: ${PEAK_AI_MONTHLY_BUDGET_USD:-5}
+      PEAK_AI_DAILY_ASKS: ${PEAK_AI_DAILY_ASKS:-20}
+    # Not published: Caddy forwards to it.
+
+  caddy:
+    image: caddy:2
+    logging: *logging
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PEAK_DOMAIN: ${PEAK_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

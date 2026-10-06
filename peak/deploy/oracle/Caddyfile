@@ -1,0 +1,5 @@
+# https for Peak. Caddy gets and renews the certificate for PEAK_DOMAIN by itself (ports 80 and 443 must be open).
+{$PEAK_DOMAIN} {
+	encode gzip
+	reverse_proxy server:8080
+}

@@ -1,0 +1,10 @@
+# Server image builds only need Packages/PeakKit and Server.
+**/.build
+**/.swiftpm
+**/.env
+deploy
+App
+Widgets
+SharedUI
+Tests
+docs
