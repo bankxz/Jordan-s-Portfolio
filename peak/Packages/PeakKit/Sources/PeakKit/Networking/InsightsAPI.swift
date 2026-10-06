@@ -8,16 +8,20 @@ extension BackendAPI {
     public struct AISettings: Codable, Sendable, Hashable {
         /// The server has AI configured and within budget.
         public var available: Bool
-        /// The user agreed to send their game data to Anthropic for AI features.
+        /// The user agreed to send their game data to this server's AI provider (consent is per provider).
         public var consented: Bool
         public var asksRemainingToday: Int
         public var dailyAskLimit: Int
+        /// Who writes the AI wording, for the consent screen ("Claude (Anthropic)", "DeepSeek"). `nil` when AI is
+        /// off, or from older servers (which only used Claude).
+        public var providerName: String?
 
-        public init(available: Bool, consented: Bool, asksRemainingToday: Int, dailyAskLimit: Int) {
+        public init(available: Bool, consented: Bool, asksRemainingToday: Int, dailyAskLimit: Int, providerName: String? = nil) {
             self.available = available
             self.consented = consented
             self.asksRemainingToday = asksRemainingToday
             self.dailyAskLimit = dailyAskLimit
+            self.providerName = providerName
         }
     }
 

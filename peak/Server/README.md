@@ -29,8 +29,12 @@ Tests/        Swift Testing: contract suite (memory + Postgres), auth, routes, w
 | `APNS_PRIVATE_KEY`, `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_BUNDLE_ID` | | `.p8` contents (newlines may be `\n`). Unset → pushes disabled. |
 | `PUBLIC_BASE_URL` | | https address games reach this server on, for error reports (decision 0008). Default: the origin of `ROBLOX_REDIRECT_URI` when that is https. Without one, error-report keys can't be created. |
 | `PORT`, `HOST`, `LOG_LEVEL` | | Defaults `8080`, `0.0.0.0`, `info` |
-| `ANTHROPIC_API_KEY` | | Claude API key from platform.claude.com (separate from a Claude subscription). Unset → AI wording off; deterministic insights still work. |
-| `PEAK_AI_MODEL` | | Default `claude-opus-5-5`. Cheaper: `claude-sonnet-5-5` ($2/$10 per M tokens) or `claude-haiku-4-5` ($1/$5). |
+| `PEAK_AI_PROVIDER` | | `claude`, `deepseek` or `none`. Unset: whichever key below is set (Claude first). Users agree to AI per provider, so switching asks them again. |
+| `ANTHROPIC_API_KEY` | | Claude API key from platform.claude.com (separate from a Claude subscription). |
+| `DEEPSEEK_API_KEY` | | DeepSeek API key from platform.deepseek.com. Cheapest option; uses DeepSeek's OpenAI-compatible chat API. No key → AI wording off; deterministic insights still work. |
+| `PEAK_AI_BASE_URL` | | Override the provider's API address (proxies, regional endpoints). |
+| `PEAK_AI_PRICE_INPUT`, `PEAK_AI_PRICE_OUTPUT` | | USD per million tokens, both or neither. Use when the model isn't in Peak's price list or prices changed, so the monthly cap stays accurate. |
+| `PEAK_AI_MODEL` | | Defaults: Claude `claude-opus-5-5`, DeepSeek `deepseek-chat`. Cheaper Claude: `claude-sonnet-5-5` ($2/$10 per M tokens) or `claude-haiku-4-5` ($1/$5). |
 | `PEAK_AI_MODEL_BRIEFING`, `PEAK_AI_MODEL_ASK` | | Per-feature overrides of `PEAK_AI_MODEL` |
 | `PEAK_AI_DAILY_ASKS` | | Questions per user per UTC day. Default `20`. |
 | `PEAK_AI_MONTHLY_BUDGET_USD` | | Spend cap across all users, from each response's token usage. Default `25`. Above it, AI stops until next month. Also set a spend limit in the Claude Console. |
@@ -94,7 +98,7 @@ Free-plan limits:
    - Paste the Neon string as `DATABASE_URL`.
    - Use `https://example.com/oauth/roblox/callback` for `ROBLOX_REDIRECT_URI` and `x` for the Roblox ID and
      secret for now.
-   - Leave `ANTHROPIC_API_KEY` empty (AI wording off, $0).
+   - Leave `DEEPSEEK_API_KEY` and `ANTHROPIC_API_KEY` empty (AI wording off, $0), or set one of them.
 3. **Note the address.** Copy the service's address, e.g. `https://peak-staging.onrender.com`. Open `/health`;
    it should say `ok` (the first visit may take a minute while it wakes).
 4. **Roblox OAuth app.** In Creator Dashboard → OAuth 2.0 apps → create:

@@ -140,7 +140,7 @@ struct AIServiceTests {
 
     func consentedUser(_ store: InMemoryStore) async throws -> UUID {
         let user = try await store.upsertUser(robloxUserID: 1, username: "u", displayName: "U", now: clock.now)
-        try await store.setAIConsent(userID: user.id, consentedAt: clock.now)
+        try await store.setAIConsent(userID: user.id, consent: AIConsent(consentedAt: clock.now, provider: "claude"))
         return user.id
     }
 
@@ -183,7 +183,7 @@ struct AIServiceTests {
         #expect(await service(claude, store: store).narrate(facts, userID: user) == facts)
         #expect(await claude.requests.isEmpty, "no consent → no call")
 
-        try await store.setAIConsent(userID: user, consentedAt: clock.now)
+        try await store.setAIConsent(userID: user, consent: AIConsent(consentedAt: clock.now, provider: "claude"))
         try await store.recordAIUsage(AIUsageRecord(userID: nil, feature: "briefing", model: "m", inputTokens: 0,
                                                     outputTokens: 0, costMicros: 5_000_000, time: clock.now))
         #expect(await service(claude, store: store).narrate(facts, userID: user) == facts)
@@ -252,7 +252,7 @@ struct AIServiceTests {
         await #expect(throws: AIService.AskFailure.consentRequired) {
             try await service(FakeClaude([]), store: store).ask("q", userID: user, toolbox: toolbox)
         }
-        try await store.setAIConsent(userID: user, consentedAt: clock.now)
+        try await store.setAIConsent(userID: user, consent: AIConsent(consentedAt: clock.now, provider: "claude"))
         let claude = FakeClaude([FakeClaude.text("Nothing unusual."), FakeClaude.text("Still nothing.")])
         let ai = service(claude, store: store)
         _ = try await ai.ask("q1", userID: user, toolbox: toolbox)

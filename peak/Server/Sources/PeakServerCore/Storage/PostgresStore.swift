@@ -245,6 +245,8 @@ public struct PostgresStore: Store {
             """,
             "CREATE INDEX error_counts_day_idx ON error_counts (day)",
         ]),
+        // NULL = consented before providers could be chosen, which meant Claude.
+        (8, ["ALTER TABLE ai_consents ADD COLUMN provider TEXT"]),
     ]
 
     /// Applies pending migrations under an advisory lock, so several instances starting at once are safe.
@@ -843,17 +845,20 @@ public struct PostgresStore: Store {
 
     // MARK: AI
 
-    public func aiConsent(userID: UUID) async throws -> Date? {
-        let rows = try await client.query("SELECT consented_at FROM ai_consents WHERE user_id = \(userID)", logger: logger)
-        for try await date in rows.decode(Date.self) { return date }
+    public func aiConsent(userID: UUID) async throws -> AIConsent? {
+        let rows = try await client.query("SELECT consented_at, provider FROM ai_consents WHERE user_id = \(userID)",
+                                          logger: logger)
+        for try await (date, provider) in rows.decode((Date, String?).self) {
+            return AIConsent(consentedAt: date, provider: provider ?? "claude")
+        }
         return nil
     }
 
-    public func setAIConsent(userID: UUID, consentedAt: Date?) async throws {
-        if let consentedAt {
+    public func setAIConsent(userID: UUID, consent: AIConsent?) async throws {
+        if let consent {
             try await client.query("""
-                INSERT INTO ai_consents (user_id, consented_at) VALUES (\(userID), \(consentedAt))
-                ON CONFLICT (user_id) DO UPDATE SET consented_at = EXCLUDED.consented_at
+                INSERT INTO ai_consents (user_id, consented_at, provider) VALUES (\(userID), \(consent.consentedAt), \(consent.provider))
+                ON CONFLICT (user_id) DO UPDATE SET consented_at = EXCLUDED.consented_at, provider = EXCLUDED.provider
                 """, logger: logger)
         } else {
             try await client.query("DELETE FROM ai_consents WHERE user_id = \(userID)", logger: logger)

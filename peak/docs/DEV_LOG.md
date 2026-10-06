@@ -285,3 +285,21 @@ the app started them.
   Install steps: `docs/SIDELOADING.md`.
 - Verified locally: 174 PeakKit tests. App code is verified in CI only (no Mac here).
 - Not verified: the real Roblox consent page in the web sheet, and installing with AltStore/Sideloadly.
+
+## 2026-10-06 — Slice 11: Free hosting on Oracle, and DeepSeek as an AI option
+
+Skills: claude-api (pricing, request shape), roblox-cloud (OAuth redirect for the new host).
+Reason: the owner can't pay for hosting or Claude.
+- **Oracle Always Free:**
+  - `deploy/oracle` runs Postgres, the server and Caddy (https).
+  - `setup.sh` (shellcheck clean) installs Docker, opens Oracle's iptables, fetches the code, asks once for
+    the settings and starts everything. Re-running it updates.
+  - The full stack ran locally: https, OAuth start with the right redirect, http→https, migrations, and the
+    database not exposed.
+- **Render** is the free fallback: free plan plus a Neon database.
+- **DeepSeek (decision 0009):**
+  - `DeepSeekClient` adapter, `PEAK_AI_PROVIDER`, per-provider consent (Postgres migration v8), and the
+    provider name in `AISettings` and the consent screen.
+  - Price list and override.
+- Verified locally: 142 server tests (in memory and on Postgres, migrations 1–8) and 174 PeakKit tests.
+- Not verified: a real DeepSeek call, and a real Oracle machine.

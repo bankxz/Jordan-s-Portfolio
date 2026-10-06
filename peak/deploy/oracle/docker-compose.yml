@@ -43,8 +43,11 @@ services:
       ROBLOX_CLIENT_ID: ${ROBLOX_CLIENT_ID:?run setup.sh first}
       ROBLOX_CLIENT_SECRET: ${ROBLOX_CLIENT_SECRET:?run setup.sh first}
       ROBLOX_REDIRECT_URI: https://${PEAK_DOMAIN:?run setup.sh first}/oauth/roblox/callback
+      # AI wording: claude, deepseek or none. Empty values mean "not set".
+      PEAK_AI_PROVIDER: ${PEAK_AI_PROVIDER:-none}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      PEAK_AI_MODEL: ${PEAK_AI_MODEL:-claude-haiku-4-5}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      PEAK_AI_MODEL: ${PEAK_AI_MODEL:-}
       PEAK_AI_MONTHLY_BUDGET_USD: ${PEAK_AI_MONTHLY_BUDGET_USD:-5}
       PEAK_AI_DAILY_ASKS: ${PEAK_AI_DAILY_ASKS:-20}
     # Not published: Caddy forwards to it.

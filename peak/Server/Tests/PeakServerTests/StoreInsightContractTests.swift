@@ -37,9 +37,11 @@ struct StoreInsightContractTests {
         let user = try await store.upsertUser(robloxUserID: Int64.random(in: 1...1_000_000_000), username: "u",
                                               displayName: "U", now: t0)
         #expect(try await store.aiConsent(userID: user.id) == nil)
-        try await store.setAIConsent(userID: user.id, consentedAt: t0)
-        #expect(try await store.aiConsent(userID: user.id) == t0)
-        try await store.setAIConsent(userID: user.id, consentedAt: nil)
+        try await store.setAIConsent(userID: user.id, consent: AIConsent(consentedAt: t0, provider: "claude"))
+        #expect(try await store.aiConsent(userID: user.id) == AIConsent(consentedAt: t0, provider: "claude"))
+        try await store.setAIConsent(userID: user.id, consent: AIConsent(consentedAt: t0, provider: "deepseek"))
+        #expect(try await store.aiConsent(userID: user.id)?.provider == "deepseek", "re-consenting records the new provider")
+        try await store.setAIConsent(userID: user.id, consent: nil)
         #expect(try await store.aiConsent(userID: user.id) == nil)
 
         // Far-future times keep this independent of other tests sharing the database.
@@ -53,7 +55,7 @@ struct StoreInsightContractTests {
         #expect(try await store.aiRequestCount(userID: user.id, feature: "ask", since: base) == 2)
         #expect(try await store.aiRequestCount(userID: user.id, feature: "ask", since: base.addingTimeInterval(30)) == 1)
 
-        try await store.setAIConsent(userID: user.id, consentedAt: t0)
+        try await store.setAIConsent(userID: user.id, consent: AIConsent(consentedAt: t0, provider: "claude"))
         try await store.deleteUser(id: user.id)
         #expect(try await store.aiConsent(userID: user.id) == nil)
         // Deleting the account keeps the spend (unlinked) so the monthly budget stays honest.

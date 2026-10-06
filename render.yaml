@@ -31,12 +31,13 @@ services:
       # https://<this service's onrender.com address>/oauth/roblox/callback
       - key: ROBLOX_REDIRECT_URI
         sync: false
-      # Optional: from platform.claude.com. Leave empty to keep AI wording off.
+      # Optional AI wording: set ONE key (or neither to keep AI off). DeepSeek is the cheapest.
+      #   DeepSeek: platform.deepseek.com    Claude: platform.claude.com (also set PEAK_AI_MODEL=claude-haiku-4-5 to keep it cheap)
+      - key: DEEPSEEK_API_KEY
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
-      # Cheap settings for testing; raise them later.
-      - key: PEAK_AI_MODEL
-        value: claude-haiku-4-5
+      # Limits for testing; raise them later.
       - key: PEAK_AI_MONTHLY_BUDGET_USD
         value: "5"
       - key: PEAK_AI_DAILY_ASKS

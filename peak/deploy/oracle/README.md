@@ -74,7 +74,9 @@ chat.
 3. It asks for:
    - your DuckDNS address;
    - the Roblox client ID and secret (the secret stays hidden while you paste);
-   - optionally a Claude API key (press Enter to skip; AI wording stays off).
+   - the AI wording: **None** (free), **DeepSeek** (cheapest; needs a key from platform.deepseek.com with a few
+     dollars of credit) or **Claude** (needs a key from platform.claude.com). Everything works without AI; only
+     Ask Peak needs it.
 
    Then it builds Peak, which takes 10–20 minutes the first time.
 4. When it says **"Peak is running at https://…"**, send that address to Claude. Claude then sets

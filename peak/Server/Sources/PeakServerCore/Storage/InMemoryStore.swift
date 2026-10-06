@@ -18,7 +18,7 @@ public actor InMemoryStore: Store {
     private var events: [UUID: [AlertEvent]] = [:]
     private var deviceRecords: [String: DeviceRecord] = [:]
     private var timeline: [TimelineEvent] = []
-    private var consents: [UUID: Date] = [:]
+    private var consents: [UUID: AIConsent] = [:]
     private var usage: [AIUsageRecord] = []
     private var insights: [InsightKey: Double] = [:]
     private var digestPushes: [String: Date] = [:]
@@ -338,9 +338,9 @@ public actor InMemoryStore: Store {
 
     // MARK: AI
 
-    public func aiConsent(userID: UUID) -> Date? { consents[userID] }
+    public func aiConsent(userID: UUID) -> AIConsent? { consents[userID] }
 
-    public func setAIConsent(userID: UUID, consentedAt: Date?) { consents[userID] = consentedAt }
+    public func setAIConsent(userID: UUID, consent: AIConsent?) { consents[userID] = consent }
 
     public func recordAIUsage(_ record: AIUsageRecord) { usage.append(record) }
 

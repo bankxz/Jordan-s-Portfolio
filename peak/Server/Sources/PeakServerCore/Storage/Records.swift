@@ -229,3 +229,16 @@ public enum ErrorReportLimits {
     /// Error counts are kept for 30 days.
     public static let retention: TimeInterval = 30 * 86_400
 }
+
+/// A user's agreement to send their game data to one AI provider. Older rows, from before providers could be
+/// chosen, were consents to Claude.
+public struct AIConsent: Sendable, Hashable {
+    public var consentedAt: Date
+    /// `ServerConfig.AIProvider` raw value.
+    public var provider: String
+
+    public init(consentedAt: Date, provider: String) {
+        self.consentedAt = consentedAt
+        self.provider = provider
+    }
+}

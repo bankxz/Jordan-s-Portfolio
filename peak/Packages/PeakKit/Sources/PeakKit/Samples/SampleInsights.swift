@@ -152,7 +152,8 @@ public actor DemoInsightService: InsightService {
 
     private var currentSettings: BackendAPI.AISettings {
         BackendAPI.AISettings(available: mode != .failing, consented: consented,
-                              asksRemainingToday: max(0, Self.dailyAskLimit - asksUsed), dailyAskLimit: Self.dailyAskLimit)
+                              asksRemainingToday: max(0, Self.dailyAskLimit - asksUsed), dailyAskLimit: Self.dailyAskLimit,
+                              providerName: "Claude (Anthropic)")
     }
 
     public func settings() async throws -> BackendAPI.AISettings {

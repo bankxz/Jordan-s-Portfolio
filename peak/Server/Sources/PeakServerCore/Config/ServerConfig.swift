@@ -48,27 +48,68 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
     }
 
     /// Claude settings (decision 0007). `nil` → AI wording off; deterministic insights still work.
+    /// Which company writes the AI wording. The server owner chooses; users consent per provider.
+    public enum AIProvider: String, Sendable, CaseIterable {
+        case claude
+        case deepseek
+
+        /// Shown to users in the consent screen.
+        public var displayName: String {
+            switch self {
+            case .claude: "Claude (Anthropic)"
+            case .deepseek: "DeepSeek"
+            }
+        }
+
+        /// Claude: the claude-api skill's default. DeepSeek: its general chat model.
+        public var defaultModel: String {
+            switch self {
+            case .claude: "claude-opus-5-5"
+            case .deepseek: "deepseek-chat"
+            }
+        }
+
+        public var defaultBaseURL: URL {
+            switch self {
+            case .claude: URL(string: "https://api.anthropic.com/")!
+            case .deepseek: DeepSeekClient.defaultBaseURL
+            }
+        }
+
+        var keyVariable: String {
+            switch self {
+            case .claude: "ANTHROPIC_API_KEY"
+            case .deepseek: "DEEPSEEK_API_KEY"
+            }
+        }
+    }
+
     public struct AI: Sendable {
+        public var provider: AIProvider
         public var apiKey: String
         public var baseURL: URL
-        /// Default model for every AI feature. The claude-api skill's default; set a cheaper one if you prefer.
+        /// Default model for every AI feature.
         public var model: String
         public var briefingModel: String?
         public var askModel: String?
         public var dailyAskLimit: Int
         /// Monthly spend cap across all users; above it AI calls stop and templates are served.
         public var monthlyBudgetUSD: Double
+        /// USD per million tokens, when the built-in price list doesn't know the model or prices changed.
+        public var priceOverride: (input: Double, output: Double)?
 
-        public init(apiKey: String, baseURL: URL = URL(string: "https://api.anthropic.com/")!,
-                    model: String = "claude-opus-5-5", briefingModel: String? = nil, askModel: String? = nil,
-                    dailyAskLimit: Int = 20, monthlyBudgetUSD: Double = 25) {
+        public init(provider: AIProvider = .claude, apiKey: String, baseURL: URL? = nil, model: String? = nil,
+                    briefingModel: String? = nil, askModel: String? = nil,
+                    dailyAskLimit: Int = 20, monthlyBudgetUSD: Double = 25, priceOverride: (input: Double, output: Double)? = nil) {
+            self.provider = provider
             self.apiKey = apiKey
-            self.baseURL = baseURL
-            self.model = model
+            self.baseURL = baseURL ?? provider.defaultBaseURL
+            self.model = model ?? provider.defaultModel
             self.briefingModel = briefingModel
             self.askModel = askModel
             self.dailyAskLimit = dailyAskLimit
             self.monthlyBudgetUSD = monthlyBudgetUSD
+            self.priceOverride = priceOverride
         }
     }
 
@@ -166,7 +207,23 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
         }
 
         var ai: AI?
-        if let key = env["ANTHROPIC_API_KEY"]?.trimmingCharacters(in: .whitespacesAndNewlines), key.isEmpty == false {
+        func nonEmpty(_ name: String) -> String? {
+            env[name].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.flatMap { $0.isEmpty ? nil : $0 }
+        }
+        let provider: AIProvider?
+        if let raw = nonEmpty("PEAK_AI_PROVIDER")?.lowercased() {
+            switch raw {
+            case "claude", "anthropic": provider = .claude
+            case "deepseek": provider = .deepseek
+            case "none", "off": provider = nil
+            default: throw ConfigError.invalid("PEAK_AI_PROVIDER", reason: "must be claude, deepseek or none")
+            }
+            if let provider, nonEmpty(provider.keyVariable) == nil { throw ConfigError.missing(provider.keyVariable) }
+        } else {
+            // No explicit choice: use whichever key is set (Claude first).
+            provider = AIProvider.allCases.first { nonEmpty($0.keyVariable) != nil }
+        }
+        if let provider, let key = nonEmpty(provider.keyVariable) {
             func positive(_ name: String, default value: Double) throws -> Double {
                 guard let raw = env[name], raw.isEmpty == false else { return value }
                 guard let parsed = Double(raw), parsed.isFinite, parsed >= 0 else {
@@ -174,15 +231,22 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
                 }
                 return parsed
             }
-            func model(_ name: String) -> String? {
-                env[name].flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0.trimmingCharacters(in: .whitespaces) }
+            var priceOverride: (input: Double, output: Double)?
+            switch (nonEmpty("PEAK_AI_PRICE_INPUT"), nonEmpty("PEAK_AI_PRICE_OUTPUT")) {
+            case (nil, nil): break
+            case (.some, .some):
+                priceOverride = (try positive("PEAK_AI_PRICE_INPUT", default: 0), try positive("PEAK_AI_PRICE_OUTPUT", default: 0))
+            default:
+                throw ConfigError.invalid("PEAK_AI_PRICE_INPUT", reason: "set both PEAK_AI_PRICE_INPUT and PEAK_AI_PRICE_OUTPUT")
             }
-            ai = AI(apiKey: key,
-                    model: model("PEAK_AI_MODEL") ?? "claude-opus-5-5",
-                    briefingModel: model("PEAK_AI_MODEL_BRIEFING"),
-                    askModel: model("PEAK_AI_MODEL_ASK"),
+            ai = AI(provider: provider, apiKey: key,
+                    baseURL: try nonEmpty("PEAK_AI_BASE_URL").map { try url("PEAK_AI_BASE_URL", $0) },
+                    model: nonEmpty("PEAK_AI_MODEL"),
+                    briefingModel: nonEmpty("PEAK_AI_MODEL_BRIEFING"),
+                    askModel: nonEmpty("PEAK_AI_MODEL_ASK"),
                     dailyAskLimit: Int(try positive("PEAK_AI_DAILY_ASKS", default: 20)),
-                    monthlyBudgetUSD: try positive("PEAK_AI_MONTHLY_BUDGET_USD", default: 25))
+                    monthlyBudgetUSD: try positive("PEAK_AI_MONTHLY_BUDGET_USD", default: 25),
+                    priceOverride: priceOverride)
         }
 
         // Games call this address, so it must be https. Defaults to the origin of the OAuth redirect.
@@ -220,6 +284,6 @@ public struct ServerConfig: Sendable, CustomStringConvertible {
             + "secret: <redacted>, encryptionKey: <redacted>, database: \(databaseURL == nil ? "in-memory" : "postgres"), "
             + "apns: \(apns == nil ? "disabled" : "enabled"), "
             + "publicBaseURL: \(publicBaseURL?.absoluteString ?? "none (error reports off)"), "
-            + "ai: \(ai.map { "\($0.model), key: <redacted>, budget: $\($0.monthlyBudgetUSD)/month" } ?? "disabled"))"
+            + "ai: \(ai.map { "\($0.provider.rawValue) \($0.model), key: <redacted>, budget: $\($0.monthlyBudgetUSD)/month" } ?? "disabled"))"
     }
 }

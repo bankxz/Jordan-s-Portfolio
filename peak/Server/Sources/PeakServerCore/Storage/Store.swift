@@ -116,9 +116,9 @@ public protocol Store: Sendable {
     func claimDigestPush(userID: UUID, key: String, at: Date, cooldown: TimeInterval) async throws -> Bool
 
     // MARK: AI
-    func aiConsent(userID: UUID) async throws -> Date?
+    func aiConsent(userID: UUID) async throws -> AIConsent?
     /// `nil` withdraws consent.
-    func setAIConsent(userID: UUID, consentedAt: Date?) async throws
+    func setAIConsent(userID: UUID, consent: AIConsent?) async throws
     func recordAIUsage(_ usage: AIUsageRecord) async throws
     /// Total cost of all AI calls at or after `since`, in micro-dollars.
     func aiCostMicros(since: Date) async throws -> Int64

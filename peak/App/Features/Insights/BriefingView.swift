@@ -64,7 +64,8 @@ struct BriefingView: View {
 
     private func footnote(_ briefing: Briefing) -> String {
         let base = "Facts come from your Roblox stats. Possible causes are suggestions to check, not confirmed."
-        return briefing.isAIWritten ? base + " Summaries marked AI were written by Claude from these facts and checked against them." : base
+        let writer = insights.settings?.providerName ?? "AI"
+        return briefing.isAIWritten ? base + " Summaries marked AI were written by \(writer) from these facts and checked against them." : base
     }
 
     private func symbol(for fact: BriefFact) -> String {

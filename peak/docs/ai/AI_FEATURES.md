@@ -1,7 +1,9 @@
 # Peak AI — feature spec and data feasibility
 
 The rule: **AI explains what the numbers mean and says what to do next.** It is not a generic chatbot.
-Architecture and guardrails: [decision 0007](../decisions/0007-ai-layer.md).
+Architecture and guardrails: [decision 0007](../decisions/0007-ai-layer.md). The provider is Claude or, as a
+cheaper option, DeepSeek ([decision 0009](../decisions/0009-ai-provider-choice.md)); the guardrails are the same
+for both.
 
 ## How every AI feature works
 

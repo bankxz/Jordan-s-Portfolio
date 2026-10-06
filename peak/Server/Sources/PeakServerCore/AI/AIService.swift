@@ -14,22 +14,29 @@ public protocol AskToolbox: Sendable {
 /// the deterministic text; nothing here can change the creator's games.
 public struct AIService: Sendable {
     public struct Settings: Sendable {
+        public var provider: ServerConfig.AIProvider
         public var briefingModel: String
         public var askModel: String
         public var dailyAskLimit: Int
         public var monthlyBudgetMicros: Int64
+        public var priceOverride: ClaudeModels.Price?
 
-        public init(briefingModel: String, askModel: String, dailyAskLimit: Int, monthlyBudgetMicros: Int64) {
+        public init(provider: ServerConfig.AIProvider = .claude, briefingModel: String, askModel: String, dailyAskLimit: Int,
+                    monthlyBudgetMicros: Int64, priceOverride: ClaudeModels.Price? = nil) {
+            self.provider = provider
             self.briefingModel = briefingModel
             self.askModel = askModel
             self.dailyAskLimit = dailyAskLimit
             self.monthlyBudgetMicros = monthlyBudgetMicros
+            self.priceOverride = priceOverride
         }
 
         public init(_ config: ServerConfig.AI) {
-            self.init(briefingModel: config.briefingModel ?? config.model, askModel: config.askModel ?? config.model,
+            self.init(provider: config.provider,
+                      briefingModel: config.briefingModel ?? config.model, askModel: config.askModel ?? config.model,
                       dailyAskLimit: config.dailyAskLimit,
-                      monthlyBudgetMicros: Int64((config.monthlyBudgetUSD * 1_000_000).rounded()))
+                      monthlyBudgetMicros: Int64((config.monthlyBudgetUSD * 1_000_000).rounded()),
+                      priceOverride: config.priceOverride.map { ClaudeModels.Price(input: $0.input, output: $0.output) })
         }
     }
 
@@ -79,19 +86,28 @@ public struct AIService: Sendable {
         let used = try await store.aiRequestCount(userID: userID, feature: Feature.ask.rawValue, since: Self.startOfDay(now()))
         let underBudget = try await withinBudget()
         let available = claude != nil && underBudget
-        return BackendAPI.AISettings(available: available, consented: try await store.aiConsent(userID: userID) != nil,
-                                     asksRemainingToday: max(0, limit - used), dailyAskLimit: limit)
+        return BackendAPI.AISettings(available: available, consented: try await hasConsent(userID: userID),
+                                     asksRemainingToday: max(0, limit - used), dailyAskLimit: limit,
+                                     providerName: settings?.provider.displayName)
     }
 
     public func setConsent(userID: UUID, value: Bool) async throws -> BackendAPI.AISettings {
-        try await store.setAIConsent(userID: userID, consentedAt: value ? now() : nil)
+        let consent = value ? settings.map { AIConsent(consentedAt: now(), provider: $0.provider.rawValue) } : nil
+        try await store.setAIConsent(userID: userID, consent: consent)
         return try await settings(userID: userID)
+    }
+
+    /// Consent covers one provider: if the server switches (say Claude to DeepSeek), users are asked again.
+    func hasConsent(userID: UUID) async throws -> Bool {
+        guard let settings, let consent = try await store.aiConsent(userID: userID) else { return false }
+        return consent.provider == settings.provider.rawValue
     }
 
     private func record(_ response: ClaudeResponse, feature: Feature, userID: UUID) async {
         let usage = AIUsageRecord(userID: userID, feature: feature.rawValue, model: response.model,
                                   inputTokens: response.usage.inputTokens, outputTokens: response.usage.outputTokens,
-                                  costMicros: ClaudeModels.costMicros(model: response.model, usage: response.usage), time: now())
+                                  costMicros: ClaudeModels.costMicros(model: response.model, usage: response.usage,
+                                                                      override: settings?.priceOverride), time: now())
         do { try await store.recordAIUsage(usage) } catch {
             logger.error("failed to record AI usage", metadata: ["error": "\(error)"])
         }
@@ -149,7 +165,7 @@ public struct AIService: Sendable {
     public func narrate(_ briefing: Briefing, userID: UUID) async -> Briefing {
         guard let claude, let settings, briefing.games.isEmpty == false else { return briefing }
         do {
-            guard try await store.aiConsent(userID: userID) != nil else { return briefing }
+            guard try await hasConsent(userID: userID) else { return briefing }
             guard try await withinBudget() else { return briefing }
             let facts = try JSONValue.from(briefing).jsonString()
             let response = try await claude.send(request(
@@ -215,7 +231,7 @@ public struct AIService: Sendable {
     public func ask(_ question: String, userID: UUID, toolbox: any AskToolbox) async throws -> BackendAPI.AskAnswer {
         guard let claude, let settings else { throw AskFailure.unavailable }
         guard try await withinBudget() else { throw AskFailure.unavailable }
-        guard try await store.aiConsent(userID: userID) != nil else { throw AskFailure.consentRequired }
+        guard try await hasConsent(userID: userID) else { throw AskFailure.consentRequired }
         let dayStart = Self.startOfDay(now())
         let used = try await store.aiRequestCount(userID: userID, feature: Feature.ask.rawValue, since: dayStart)
         guard used < settings.dailyAskLimit else { throw AskFailure.dailyLimitReached }
@@ -274,7 +290,7 @@ public struct AIService: Sendable {
         let game = input["game_id"]?.doubleValue.map { " for game \(Int64($0))" } ?? ""
         let metric = input["metric"]?.stringValue.map { " (\($0)" + (input["range"]?.stringValue.map { ", \($0))" } ?? ")") } ?? ""
         let names = ["list_games": "Your games", "get_metric_history": "Metric history", "get_alerts": "Unusual changes",
-                     "get_update_impact": "Update report", "get_funnels": "Funnels", "get_campaigns": "Ad campaigns", "get_goals": "Goals", "get_portfolio_health": "Portfolio health"]
+                     "get_update_impact": "Update report", "get_funnels": "Funnels", "get_campaigns": "Ad campaigns", "get_errors": "Error reports", "get_goals": "Goals", "get_portfolio_health": "Portfolio health"]
         return (names[tool] ?? tool) + game + metric
     }
 }

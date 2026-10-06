@@ -179,6 +179,9 @@ private struct ExchangeView: View {
 struct AIConsentView: View {
     @Environment(InsightsModel.self) private var insights
 
+    /// The server says which company it uses (Claude or DeepSeek); older servers only used Claude.
+    private var providerName: String { insights.settings?.providerName ?? "Claude (Anthropic)" }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -196,7 +199,7 @@ struct AIConsentView: View {
                     point("chart.bar", "What's sent",
                           "Stats for your games: names, player counts, revenue, changes and goals. Never player names or IDs.")
                     point("building.2", "Who processes it",
-                          "Anthropic's Claude API, only to write your briefing and answers. See Peak's privacy policy for details.")
+                          "Sent to \(providerName), only to write your briefing and answers. See Peak's privacy policy for details.")
                     point("checkmark.shield", "Numbers are checked",
                           "Any number not in your data is rejected, and Peak shows its own text instead.")
                     point("hand.raised", "You stay in control",

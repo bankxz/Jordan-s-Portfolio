@@ -67,7 +67,10 @@ current() { grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2- | sed -e "s/^'//
 PEAK_DOMAIN=$(current PEAK_DOMAIN)
 ROBLOX_CLIENT_ID=$(current ROBLOX_CLIENT_ID)
 ROBLOX_CLIENT_SECRET=$(current ROBLOX_CLIENT_SECRET)
+PEAK_AI_PROVIDER=$(current PEAK_AI_PROVIDER)
 ANTHROPIC_API_KEY=$(current ANTHROPIC_API_KEY)
+DEEPSEEK_API_KEY=$(current DEEPSEEK_API_KEY)
+PEAK_AI_MODEL=$(current PEAK_AI_MODEL)
 TOKEN_ENCRYPTION_KEY=$(current TOKEN_ENCRYPTION_KEY)
 POSTGRES_PASSWORD=$(current POSTGRES_PASSWORD)
 
@@ -85,9 +88,24 @@ else
   ROBLOX_CLIENT_SECRET=$(ask_secret "Roblox client secret (hidden while you type/paste): " | tr -d '[:space:]')
   [ -n "$ROBLOX_CLIENT_SECRET" ] || fail "the client secret is empty."
   echo
-  ANTHROPIC_API_KEY=$(ask_secret "Claude API key for AI wording (optional, press Enter to skip): " | tr -d '[:space:]')
+  echo "AI wording (optional). Everything works without it; only Ask Peak needs it."
+  echo "  1) None (free)   2) DeepSeek (cheapest)   3) Claude"
+  case "$(ask "Choose 1, 2 or 3 [1]: " | tr -d '[:space:]')" in
+    2) PEAK_AI_PROVIDER=deepseek
+       DEEPSEEK_API_KEY=$(ask_secret "DeepSeek API key (hidden): " | tr -d '[:space:]')
+       [ -n "$DEEPSEEK_API_KEY" ] || fail "the DeepSeek key is empty." ;;
+    3) PEAK_AI_PROVIDER=claude
+       PEAK_AI_MODEL=claude-haiku-4-5  # the cheapest Claude; change in .env if you like
+       ANTHROPIC_API_KEY=$(ask_secret "Claude API key (hidden): " | tr -d '[:space:]')
+       [ -n "$ANTHROPIC_API_KEY" ] || fail "the Claude key is empty." ;;
+    *) PEAK_AI_PROVIDER=none ;;
+  esac
 fi
-for value in "$ROBLOX_CLIENT_SECRET" "$ANTHROPIC_API_KEY"; do
+if [ -z "$PEAK_AI_PROVIDER" ]; then
+  # Settings saved before the AI choice existed: a Claude key meant Claude.
+  if [ -n "$ANTHROPIC_API_KEY" ]; then PEAK_AI_PROVIDER=claude; else PEAK_AI_PROVIDER=none; fi
+fi
+for value in "$ROBLOX_CLIENT_SECRET" "$ANTHROPIC_API_KEY" "$DEEPSEEK_API_KEY"; do
   [[ "$value" != *"'"* ]] || fail "a value contains a ' character, which isn't supported."
 done
 # Generated once and kept: changing them would sign everyone out / lose the database password.
@@ -99,7 +117,10 @@ cat > "$ENV_FILE" <<ENVEOF
 PEAK_DOMAIN='$PEAK_DOMAIN'
 ROBLOX_CLIENT_ID='$ROBLOX_CLIENT_ID'
 ROBLOX_CLIENT_SECRET='$ROBLOX_CLIENT_SECRET'
+PEAK_AI_PROVIDER='$PEAK_AI_PROVIDER'
+PEAK_AI_MODEL='$PEAK_AI_MODEL'
 ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY'
+DEEPSEEK_API_KEY='$DEEPSEEK_API_KEY'
 TOKEN_ENCRYPTION_KEY='$TOKEN_ENCRYPTION_KEY'
 POSTGRES_PASSWORD='$POSTGRES_PASSWORD'
 ENVEOF

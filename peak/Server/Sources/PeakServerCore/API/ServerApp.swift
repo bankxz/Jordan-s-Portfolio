@@ -86,10 +86,13 @@ public enum PeakServerApp {
             postgres = nil
             store = InMemoryStore()
         }
-        // Claude responses with thinking can take a while; give them their own, longer timeout.
-        let claude = config.ai.map {
-            ClaudeClient(apiKey: $0.apiKey, baseURL: $0.baseURL,
-                         http: LiveHTTPExecutor(timeout: .seconds(120), maxResponseBytes: 2 * 1024 * 1024))
+        // AI responses can take a while; give them their own, longer timeout.
+        let claude: (any ClaudeAPI)? = config.ai.map { ai in
+            let http = LiveHTTPExecutor(timeout: .seconds(120), maxResponseBytes: 2 * 1024 * 1024)
+            switch ai.provider {
+            case .claude: return ClaudeClient(apiKey: ai.apiKey, baseURL: ai.baseURL, http: http)
+            case .deepseek: return DeepSeekClient(apiKey: ai.apiKey, baseURL: ai.baseURL, http: http)
+            }
         }
         let deps = ServerDependencies(
             store: store,

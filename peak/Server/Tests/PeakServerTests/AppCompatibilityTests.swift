@@ -72,7 +72,7 @@ struct AppCompatibilityTests {
             #expect(try await insights.alertDigests().isEmpty)
             #expect(try await insights.portfolio().map(\.gameID) == [DataRouteTests.universe])
             #expect(try await insights.updateImpact(gameID: DataRouteTests.universe) == nil, "404 maps to nil")
-            #expect(try await insights.setConsent(true).consented)
+            #expect(try await insights.setConsent(true).consented == false, "consent is per provider, and AI is off")
             await #expect(throws: APIError.server(status: 503)) { try await insights.ask("Why?") }
 
             // 6. Reconnect state reaches the app as its own error case.

@@ -197,11 +197,22 @@ public struct ClaudeClient: ClaudeAPI {
     }
 }
 
-/// What each model can be asked for, and what it costs. Prices are USD per million tokens from the
-/// claude-api skill's model table (2026-09-25); unknown models are charged at the highest known price so
-/// the budget errs on the safe side.
+/// What each model can be asked for, and what it costs. Prices are USD per million tokens. Claude's come from
+/// the claude-api skill's model table (2026-09-25). DeepSeek's come from published price lists (2026-10); they
+/// change, so `PEAK_AI_PRICE_INPUT`/`_OUTPUT` can override. Unknown models are charged high, so the budget errs
+/// on the safe side.
 public enum ClaudeModels {
-    struct Price { var input: Double; var output: Double; var cacheReadMultiplier: Double }
+    public struct Price: Sendable, Hashable {
+        public var input: Double
+        public var output: Double
+        public var cacheReadMultiplier: Double
+
+        public init(input: Double, output: Double, cacheReadMultiplier: Double = 0.1) {
+            self.input = input
+            self.output = output
+            self.cacheReadMultiplier = cacheReadMultiplier
+        }
+    }
 
     static let prices: [String: Price] = [
         "claude-fable-5-1": Price(input: 10, output: 50, cacheReadMultiplier: 0.025),
@@ -210,8 +221,11 @@ public enum ClaudeModels {
         "claude-sonnet-5-5": Price(input: 2, output: 10, cacheReadMultiplier: 0.1),
         "claude-sonnet-5": Price(input: 2, output: 10, cacheReadMultiplier: 0.1),
         "claude-haiku-4-5": Price(input: 1, output: 5, cacheReadMultiplier: 0.1),
+        "deepseek-chat": Price(input: 0.28, output: 0.42, cacheReadMultiplier: 0.1),
     ]
     static let fallbackPrice = Price(input: 10, output: 50, cacheReadMultiplier: 0.1)
+    /// Unknown DeepSeek models: above every DeepSeek price seen so far, far below Claude's fallback.
+    static let deepSeekFallbackPrice = Price(input: 2, output: 8, cacheReadMultiplier: 0.1)
 
     /// Haiku 4.5 rejects `effort`.
     public static func supportsEffort(_ model: String) -> Bool { model.hasPrefix("claude-haiku") == false }
@@ -222,8 +236,8 @@ public enum ClaudeModels {
     }
 
     /// Cost in micro-dollars. $/MTok is the same number as micro-dollars per token.
-    public static func costMicros(model: String, usage: ClaudeResponse.Usage) -> Int64 {
-        let price = prices[model] ?? fallbackPrice
+    public static func costMicros(model: String, usage: ClaudeResponse.Usage, override: Price? = nil) -> Int64 {
+        let price = override ?? prices[model] ?? (model.hasPrefix("deepseek") ? deepSeekFallbackPrice : fallbackPrice)
         let input = Double(usage.inputTokens) * price.input
         let output = Double(usage.outputTokens) * price.output
         let cacheWrite = Double(usage.cacheCreationInputTokens ?? 0) * price.input * 1.25
