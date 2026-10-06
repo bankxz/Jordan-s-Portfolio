@@ -29,13 +29,6 @@ struct GamesListView: View {
     private func list(_ dashboard: Dashboard) -> some View {
         let games = filtered(dashboard.games)
         return List {
-            if searchText.isEmpty, let ranking = insights.portfolio.value, ranking.count > 1 {
-                Section {
-                    PortfolioHealthCard(ranking: ranking)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                }
-            }
             if games.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             }
@@ -65,6 +58,14 @@ struct GamesListView: View {
                     } label: {
                         Label(game.isWorkingOn ? "Stop working on" : "Mark working on", systemImage: "hammer")
                     }
+                }
+            }
+            // After the games: the list is the main content, and at large text sizes the card is tall.
+            if searchText.isEmpty, let ranking = insights.portfolio.value, ranking.count > 1 {
+                Section {
+                    PortfolioHealthCard(ranking: ranking)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                 }
             }
         }

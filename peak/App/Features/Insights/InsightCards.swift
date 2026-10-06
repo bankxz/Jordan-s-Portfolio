@@ -51,7 +51,7 @@ struct DigestCard: View {
                     .font(.headline)
                     .lineLimit(2)
                 Spacer()
-                Text(digest.headline.detectedAt, style: .relative)
+                Text(digest.headline.detectedAt, format: .relative(presentation: .named))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

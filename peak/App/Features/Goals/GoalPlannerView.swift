@@ -25,9 +25,12 @@ struct GoalPlannerView: View {
                         Text("Visits").tag(Metric.visits)
                         Text("Favourites").tag(Metric.favourites)
                     }
-                    TextField("Target", text: $targetText)
-                        .keyboardType(.numberPad)
-                        .accessibilityIdentifier("goalTargetField")
+                    LabeledContent("Target") {
+                        TextField("Target", text: $targetText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .accessibilityIdentifier("goalTargetField")
+                    }
                     Stepper("Within \(days) days", value: $days, in: 7...180, step: 7)
                 }
 

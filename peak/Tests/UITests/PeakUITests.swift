@@ -220,10 +220,8 @@ final class PeakUITests: XCTestCase {
     func testUpdateImpactOnGameDetail() {
         let app = launch()
         app.tabBars.buttons["Games"].tap()
-        XCTAssertTrue(element(app, "portfolioCard").waitForExistence(timeout: 15))
-        screenshot(app, "games-portfolio")
         let row = element(app, "gameRow.\(attackAnimals)")
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
         row.tap()
         let card = element(app, "updateImpactCard")
         for _ in 0..<4 where card.exists == false || card.isHittable == false {
@@ -231,6 +229,19 @@ final class PeakUITests: XCTestCase {
         }
         XCTAssertTrue(card.waitForExistence(timeout: 10))
         screenshot(app, "game-update-impact")
+    }
+
+    @MainActor
+    func testPortfolioHealthBelowGames() {
+        let app = launch()
+        app.tabBars.buttons["Games"].tap()
+        XCTAssertTrue(element(app, "gameRow.\(attackAnimals)").waitForExistence(timeout: 15))
+        let card = element(app, "portfolioCard")
+        for _ in 0..<5 where card.exists == false {
+            app.swipeUp()
+        }
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        screenshot(app, "games-portfolio")
     }
 
     @MainActor
